@@ -17,13 +17,12 @@ final class LLMSettingsViewModelTests: XCTestCase {
     // MARK: - Defaults
 
     func testDefaultValuesAfterInit() {
-        XCTAssertEqual(viewModel.selectedProviderID, .openai)
+        XCTAssertNil(viewModel.selectedProviderID)
         XCTAssertEqual(viewModel.apiKeyInput, "")
         XCTAssertEqual(viewModel.modelName, "gpt-5.4")
-        XCTAssertEqual(viewModel.baseURLOverride, "")
         XCTAssertEqual(viewModel.connectionTestState, .idle)
         XCTAssertFalse(viewModel.isConfigured)
-        XCTAssertTrue(viewModel.requiresAPIKey)
+        XCTAssertFalse(viewModel.canSave)
     }
 
     // MARK: - Provider Change
@@ -524,5 +523,24 @@ final class LLMSettingsViewModelTests: XCTestCase {
         viewModel.selectedProviderID = .openai
         XCTAssertTrue(viewModel.requiresAPIKey)
         XCTAssertFalse(viewModel.availableModels.isEmpty)
+    }
+
+    // MARK: - None Provider
+
+    func testNoneProviderDefaultsWhenNoStoredConfig() {
+        viewModel.configure(configStore: mockConfigStore, llmClient: mockClient)
+        XCTAssertNil(viewModel.selectedProviderID)
+        XCTAssertFalse(viewModel.canSave)
+        XCTAssertFalse(viewModel.canTestConnection)
+    }
+
+    func testSelectingNoneClearsConfig() {
+        mockConfigStore.config = .openai(apiKey: "sk-test")
+        viewModel.configure(configStore: mockConfigStore, llmClient: mockClient)
+        XCTAssertEqual(viewModel.selectedProviderID, .openai)
+
+        viewModel.selectedProviderID = nil
+        XCTAssertNil(viewModel.selectedProviderID)
+        XCTAssertNil(mockConfigStore.config)
     }
 }
