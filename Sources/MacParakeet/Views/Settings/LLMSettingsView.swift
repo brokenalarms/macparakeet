@@ -32,6 +32,11 @@ struct LLMSettingsView: View {
 
             Divider()
 
+            // Privacy info
+            privacyInfo
+
+            if viewModel.selectedProviderID != nil {
+
             // API key (hidden for local providers)
             if viewModel.requiresAPIKey {
                 HStack(alignment: .top) {
@@ -89,11 +94,6 @@ struct LLMSettingsView: View {
 
             Divider()
 
-            // Privacy info
-            privacyInfo
-
-            Divider()
-
             // Test connection + status
             HStack(spacing: DesignSystem.Spacing.sm) {
                 Button("Test Connection") {
@@ -140,6 +140,7 @@ struct LLMSettingsView: View {
                 saveStateIndicator
 
                 Spacer()
+            } // if selectedProviderID != nil
             }
         }
     }
