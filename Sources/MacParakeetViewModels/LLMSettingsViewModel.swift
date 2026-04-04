@@ -22,9 +22,19 @@ public final class LLMSettingsViewModel {
     public var connectionTestState: ConnectionTestState = .idle
     public var saveState: SaveState = .idle
 
-    public var selectedProviderID: LLMProviderID {
-        get { draft.providerID }
-        set { applyProviderChange(to: newValue) }
+    private var providerEnabled = false
+
+    public var selectedProviderID: LLMProviderID? {
+        get { providerEnabled ? draft.providerID : nil }
+        set {
+            if let newValue {
+                providerEnabled = true
+                applyProviderChange(to: newValue)
+            } else {
+                providerEnabled = false
+                deleteStoredConfig()
+            }
+        }
     }
 
     public var apiKeyInput: String {
@@ -89,11 +99,11 @@ public final class LLMSettingsViewModel {
     }
 
     public var canSave: Bool {
-        draft.isValid
+        providerEnabled && draft.isValid
     }
 
     public var canTestConnection: Bool {
-        draft.isValid
+        providerEnabled && draft.isValid
     }
 
     public var validationMessage: String? {
@@ -250,6 +260,18 @@ public final class LLMSettingsViewModel {
         }
     }
 
+    private func deleteStoredConfig() {
+        guard let configStore else { return }
+        do {
+            try configStore.deleteConfig()
+        } catch {
+            logger.error("Failed to delete LLM configuration error=\(error.localizedDescription, privacy: .public)")
+        }
+        connectionTestState = .idle
+        saveState = .idle
+        onConfigurationChanged?()
+    }
+
     private func applyProviderChange(to providerID: LLMProviderID) {
         guard draft.providerID != providerID else { return }
         let apiKey = providerID.requiresAPIKey ? ((try? configStore?.loadAPIKey(for: providerID)) ?? "") : ""
@@ -264,7 +286,11 @@ public final class LLMSettingsViewModel {
     }
 
     private func loadExistingConfig() {
-        guard let configStore, let config = try? configStore.loadConfig() else { return }
+        guard let configStore, let config = try? configStore.loadConfig() else {
+            providerEnabled = false
+            return
+        }
+        providerEnabled = true
         let cliConfig = config.id == .localCLI ? cliConfigStore?.load() : nil
         draft = .fromStoredConfig(
             config,
