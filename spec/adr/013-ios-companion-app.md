@@ -19,7 +19,7 @@ iOS imposes constraints the Mac app never faced:
 
 ### 1. Scope: dictation only
 
-iOS v1 ships the dictation half of the product: in-app dictation, a launcher keyboard, history, vocabulary (processing mode, custom words, snippets), and settings. All data is per-device; nothing syncs with the Mac app. File transcription, YouTube, export, playback, diarization, local CLI LLM providers, Sparkle, and licensing are out of scope. This preserves "simplicity is the product": iOS gets one mode, done well.
+iOS v1 ships the dictation half of the product: in-app dictation, a launcher keyboard, history, vocabulary (processing mode, custom words, snippets), and settings. All data is per-device; nothing syncs with the Mac app. File transcription, YouTube, export, playback, diarization, optional LLM text features (ADR-011 summary/chat/refinement via user API keys), Sparkle, and licensing are out of scope. This preserves "simplicity is the product": iOS gets one mode, done well.
 
 ### 2. All audio and STT run in the host app
 
@@ -61,7 +61,7 @@ The iOS app keeps its own database, vocabulary, and settings. Sync would require
 - Full Access triggers Apple's "can transmit anything you type" warning; onboarding must explain it.
 - The responder-chain app launch is unsupported API and may break in a future iOS release.
 - The iOS build can break when upstream changes a shared file to depend on an excluded one; the fix is a replacement in `iOS/`, never an edit to `Sources/`.
-- No LLM features on iOS: the shared LLM routing depends on `Process`.
+- No optional LLM text features (ADR-011 summary/chat/refinement) on iOS: the shared provider routing depends on `Process`. Parakeet speech-to-text is unaffected.
 - Custom words and snippets must be entered separately on each device.
 
 ### Risks

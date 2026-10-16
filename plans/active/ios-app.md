@@ -24,8 +24,9 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 ### Out of scope
 
 - File transcription, YouTube, FFmpeg, video player, diarization, library view
-- All LLM features (the routing client depends on `LocalCLIExecutor`, which
-  uses `Process` and cannot build on iOS)
+- Optional LLM text features from ADR-011 (summary/chat/refinement via user API
+  keys). Their provider routing depends on `LocalCLIExecutor`, which uses
+  `Process` and cannot build on iOS. Parakeet STT is unaffected.
 - Non-Parakeet models
 - A full typing keyboard (swipe, autocorrect, layouts)
 - Shortcut/Action Button triggers (possible later via `AudioRecordingIntent`)
@@ -105,7 +106,7 @@ Excluded from the iOS build (verified by grepping cross-references):
 | `Audio/AudioRecorder.swift`, `AudioDeviceManager.swift` | CoreAudio device APIs | `RecordingDeviceInfo` (used by `AudioProcessorProtocol`, `AudioProcessor`, `TelemetryEvent`) |
 | `Audio/AudioProcessor.swift`, `AudioFileConverter.swift` | FFmpeg file conversion | `AudioProcessorProtocol` conformer for `DictationService` |
 | `Services/AccessibilityService`, `ClipboardService`, `PermissionService`, `LaunchAtLoginService` | AppKit / AX / SMAppService | none; iOS has its own mic permission helper |
-| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService` | `Process` | none (LLM out of scope) |
+| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService` | `Process` | none (ADR-011 LLM text features out of scope; Parakeet STT unaffected) |
 | `Services/YouTubeDownloader`, `VideoStreamService`, `ThumbnailCacheService`, `BinaryBootstrap`, `ExportService`, `AutoSaveService`, `TranscriptionService`, `DiarizationService` | file/YouTube features | none |
 | `STT/FnKeyStateMachine`, `HotkeyTrigger`, `KeyCodeNames`, `DictationFlow/DictationFlowStateMachine` | hotkey flow | none; iOS session uses `ios_dictation_session` |
 
