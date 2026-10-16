@@ -30,3 +30,13 @@ make -C iOS build       # iOS Simulator build
 make -C iOS test        # iOS tests
 swift test              # Mac suite, must stay green
 ```
+
+To sign for a device, create `Config/Local.xcconfig` (gitignored) with your `DEVELOPMENT_TEAM`, a `BUNDLE_ID_PREFIX` you own, and a matching `APP_GROUP_ID`.
+
+## Gotchas
+
+- **Keep `project.yml` package pins equal to the Mac's `Package.resolved`** (GRDB 7.10.0, FluidAudio 0.12.5).
+- **FluidAudio 0.12.5 does not compile on Xcode 26.6** (Swift 6 `sending` data-race errors in `StreamingAsrManager.swift`), on macOS as well as iOS. It's an upstream/toolchain issue, not an iOS one. See the plan's Phase 1 gate note.
+- **If a shared file starts referencing an excluded one, add it to the `excludes` list** when it's only used by excluded code (as with `LLMClient` and `SpeakerMerger`). Otherwise add a replacement in `CoreReplacements/`.
+- **The test target is unhosted.** It compiles `Shared/` and the testable `App/` files directly. When a new `App/` file needs tests, add it to `MacParakeetiOSTests.sources`.
+- **The database lives in the app's private container, not the App Group.** Only `ipc/*.json` is shared with the keyboard.

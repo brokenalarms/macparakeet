@@ -6,6 +6,7 @@ initial: inactive
 states: [inactive, activating, ready, recording, processing, ended]
 events:
   - launch_url_opened
+  - app_session_requested       # in-app record tapped with no held session
   - audio_session_activated
   - audio_session_failed
   - start_command
@@ -22,6 +23,8 @@ events:
 transitions:
   - { from: inactive, event: launch_url_opened, to: activating }
   - { from: ended, event: launch_url_opened, to: activating }
+  - { from: inactive, event: app_session_requested, to: activating }
+  - { from: ended, event: app_session_requested, to: activating }
   - { from: activating, event: audio_session_activated, to: ready }
   - { from: activating, event: audio_session_failed, to: ended }
   - { from: ready, event: start_command, to: recording }
@@ -43,3 +46,4 @@ invariants:
   - The idle timer runs only in ready and resets on every transition into ready
   - transcript_ready persists the dictation via DictationRepository (unless private mode) before writing the result
   - interruption_began during recording transcribes the captured audio rather than discarding it
+  - In-app dictation uses the same session and an app-generated requestID, so the keyboard sees it as busy_elsewhere
