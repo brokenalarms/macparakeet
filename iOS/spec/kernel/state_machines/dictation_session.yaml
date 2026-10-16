@@ -1,0 +1,45 @@
+name: dictation_session
+status: active
+requirements: [REQ-IOS-002]
+owner: host app (DictationSessionController)
+initial: inactive
+states: [inactive, activating, ready, recording, processing, ended]
+events:
+  - launch_url_opened
+  - audio_session_activated
+  - audio_session_failed
+  - start_command
+  - stop_command
+  - cancel_command
+  - transcript_ready
+  - transcript_empty
+  - stt_failed
+  - interruption_began
+  - interruption_ended
+  - interruption_unrecoverable
+  - idle_timeout
+  - user_ended_session
+transitions:
+  - { from: inactive, event: launch_url_opened, to: activating }
+  - { from: ended, event: launch_url_opened, to: activating }
+  - { from: activating, event: audio_session_activated, to: ready }
+  - { from: activating, event: audio_session_failed, to: ended }
+  - { from: ready, event: start_command, to: recording }
+  - { from: ready, event: idle_timeout, to: ended }
+  - { from: ready, event: user_ended_session, to: ended }
+  - { from: ready, event: interruption_unrecoverable, to: ended }
+  - { from: recording, event: stop_command, to: processing }
+  - { from: recording, event: cancel_command, to: ready }
+  - { from: recording, event: interruption_began, to: processing }
+  - { from: processing, event: transcript_ready, to: ready }
+  - { from: processing, event: transcript_empty, to: ready }
+  - { from: processing, event: stt_failed, to: ready }
+  - { from: ready, event: interruption_ended, to: ready }
+terminal_states: [ended]
+invariants:
+  - Every transition rewrites session.json and posts session_changed
+  - heartbeatAt is refreshed while in ready, recording, or processing; never in ended
+  - Entering ended deactivates AVAudioSession and ends the Live Activity
+  - The idle timer runs only in ready and resets on every transition into ready
+  - transcript_ready persists the dictation via DictationRepository (unless private mode) before writing the result
+  - interruption_began during recording transcribes the captured audio rather than discarding it
