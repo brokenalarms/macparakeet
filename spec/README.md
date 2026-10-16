@@ -51,7 +51,7 @@ All ADRs live in `spec/adr/`. These are locked -- they record decisions already 
 | [ADR-010](adr/010-speaker-diarization.md) | Speaker diarization via FluidAudio offline pipeline |
 | [ADR-011](adr/011-llm-cloud-and-local-providers.md) | LLM via cloud API keys + optional local providers |
 | [ADR-012](adr/012-telemetry-system.md) | Self-hosted telemetry via Cloudflare (Worker + D1) |
-| [ADR-013](adr/013-ios-companion-app.md) | iOS companion app + opt-in iCloud sync (proposed) |
+| [ADR-013](adr/013-ios-companion-app.md) | iOS companion app (proposed) |
 
 ## Version Roadmap
 
@@ -63,7 +63,7 @@ All ADRs live in `spec/adr/`. These are locked -- they record decisions already 
 | v0.4 | Polish & Launch | Diarization, custom hotkey, non-blocking progress, direct distribution | **Implemented** |
 | v0.5 | Data & Reliability | Private dictation, video metadata, multi-conversation chat, FTS5 cleanup, favorites | **Implemented** |
 | v0.6 | Video Player & UI Revamp | Embedded video playback, split-pane detail view, library grid, thumbnail cards | **Implemented** |
-| ios-v1 | iOS Companion | iPhone dictation via launcher keyboard, shared Core, opt-in iCloud sync (ADR-013) | **Proposed** |
+| ios-v1 | iOS Companion | iPhone dictation via launcher keyboard, shared Core, per-device data (ADR-013) | **Proposed** |
 
 ## Version Progress
 
@@ -143,14 +143,13 @@ Dictation + transcription + history + settings. Get audio in, text out, pasted i
 
 ### ios-v1 iOS Companion (Proposed)
 
-Plan: `plans/active/ios-app.md`. Kernel: `REQ-IOS-001`…`REQ-IOS-005`, `REQ-SYNC-001`.
+Plan: `plans/active/ios-app.md`. Kernel: `REQ-IOS-001`…`REQ-IOS-005`.
 
-- [x] Phase 0: requirements, contracts, state machine, ADR-013, ADR-002 amendment
+- [x] Phase 0: requirements, contract, state machine, ADR-013
 - [ ] Phase 1: Core + ViewModels build for iOS 17 (REQ-IOS-001)
 - [ ] Phase 2: Host app with onboarding, in-app dictation, history, vocabulary, settings (REQ-IOS-001, 004, 005)
 - [ ] Phase 3: Launcher keyboard + background session (REQ-IOS-002, 003)
-- [ ] Phase 4: Opt-in iCloud sync (REQ-SYNC-001)
-- [ ] Phase 5: TestFlight + App Store
+- [ ] Phase 4: TestFlight + App Store
 
 ## For AI Coding Assistants
 
@@ -160,7 +159,7 @@ Plan: `plans/active/ios-app.md`. Kernel: `REQ-IOS-001`…`REQ-IOS-005`, `REQ-SYN
 2. **ADRs are locked.** Do not propose alternatives to locked decisions.
 3. **Version order matters.** Implement v0.1 before v0.2. Do not jump ahead.
 4. **Never lose user data.** Graceful degradation over silent failure.
-5. **Local-first.** Audio never leaves the device. Text leaves only via user opt-in features (LLM providers, ADR-011; iCloud sync, ADR-013).
+5. **Local-first.** Audio never leaves the device. Text leaves only via user opt-in LLM providers (ADR-011).
 6. **`swift test` is the gate.** All tests must pass before and after changes.
 8. **Kernel has precedence for implementation.** When present, `spec/kernel/*` artifacts define executable requirements and contracts.
 

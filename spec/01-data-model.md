@@ -4,7 +4,7 @@
 
 ## Overview
 
-MacParakeet uses **SQLite via GRDB** for all persistent storage. Single database file, no accounts, no cloud sync by default (opt-in iCloud sync is proposed in ADR-013). Data lives at `~/Library/Application Support/MacParakeet/macparakeet.db` on macOS; on iOS (proposed) it lives in the App Group container `group.com.macparakeet`.
+MacParakeet uses **SQLite via GRDB** for all persistent storage. Single database file, no cloud sync, no accounts. Data lives at `~/Library/Application Support/MacParakeet/macparakeet.db` on macOS; on iOS (proposed, ADR-013) it lives in the App Group container `group.com.macparakeet`, separate from the Mac database.
 
 **Design Principle (YAGNI):** Only add tables when a version needs them. Don't create empty tables for future features.
 
@@ -566,9 +566,6 @@ migrator.registerMigration("v0.5-transcription-video-metadata") { db in
 | `transcriptions.videoDescription` | v0.5 | YouTube video description |
 | `transcriptions.isFavorite` | v0.5 | User favorite marker |
 | `text_snippets.action` | v0.7 | Key action appended after expansion |
-| `dictations.deletedAt` | ios-v1 (proposed) | Sync tombstone (ADR-013) |
-| `custom_words.deletedAt` | ios-v1 (proposed) | Sync tombstone (ADR-013) |
-| `text_snippets.deletedAt` | ios-v1 (proposed) | Sync tombstone (ADR-013) |
 
 ### Tables NOT Planned (YAGNI)
 
@@ -578,15 +575,6 @@ These might be needed someday but are explicitly deferred:
 - **`exports`** -- Track via `exportPath` on `transcriptions`. No separate table.
 - **`speakers`** -- Speaker labels and per-word speaker IDs live as JSON on `transcriptions` (v0.4 diarization). No separate table needed — speaker identity is per-transcription, not cross-file. Revisit only if cross-file speaker recognition is added.
 - **`usage_stats`** -- Derive from existing tables via queries. No separate tracking table.
-
-### Sync Tombstones (proposed, ADR-013)
-
-`dictations`, `custom_words`, and `text_snippets` each gain a nullable `deletedAt TEXT` (ISO 8601) in its own migration (`ios-v1-dictations-deleted-at`, etc.). `updatedAt` already exists on all three.
-
-- Repository reads filter `deletedAt IS NULL`; deletes set `deletedAt` and `updatedAt` instead of removing the row.
-- The unique indexes on `custom_words.word` and `text_snippets.trigger` become partial (`WHERE deletedAt IS NULL`), so a tombstoned row never blocks re-adding the same word.
-- Deletes are soft whether or not sync is on, so a delete made while sync is off still reaches the other device after sync is turned on. Tombstones older than 30 days are purged after a successful sync.
-- Sync rules (record mapping, merges, never-synced fields): `spec/kernel/contracts/icloud_sync.yaml`.
 
 ---
 

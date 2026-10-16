@@ -16,7 +16,6 @@
 #   PLAY  - Video/audio playback
 #   LIB   - Transcription library
 #   IOS   - iOS companion app (keyboard-launched dictation)
-#   SYNC  - Opt-in iCloud sync between Mac and iOS
 
 # --- v0.1 Core MVP ---
 
@@ -238,16 +237,3 @@ REQ-IOS-005:
     - Custom words and snippets support add, edit, enable/disable, delete with the same validation as macOS
     - Private dictation mode behaves as REQ-DICT-005
 
-REQ-SYNC-001:
-  description: Opt-in iCloud sync of custom words, snippets, allowlisted settings, and dictation text
-  version: ios-v1
-  status: proposed
-  priority: p2
-  source: spec/adr/013-ios-companion-app.md
-  contract: spec/kernel/contracts/icloud_sync.yaml
-  acceptance:
-    - Sync is off by default on both platforms; while off, no CloudKit API is called
-    - A custom word added on one device appears on the other; a delete propagates as a tombstone
-    - The same custom word or snippet trigger created independently on both devices converges to one row
-    - Hidden dictations, audio files, and audioPath are never uploaded
-    - Turning sync off keeps all local data

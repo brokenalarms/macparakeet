@@ -3,7 +3,6 @@
 > Status: **Accepted** (Amended 2026-03-11)
 > Date: 2026-02-08
 > Amended: 2026-03-11 — Refined scope from "no cloud processing" to "local-first" with opt-in LLM providers (ADR-011)
-> Proposed amendment: 2026-10-16 — Opt-in, text-only iCloud sync between Mac and iOS (ADR-013). Takes effect when ADR-013 is accepted.
 
 ## Context
 
@@ -36,11 +35,6 @@ LLM-powered features (summarization, chat, transforms) use external providers co
   - User configures their own API key or local provider (Ollama/LM Studio)
   - No default provider — user must explicitly opt in
   - Features work without any provider configured (they're just unavailable)
-
-- **iCloud sync** (ADR-013, proposed): Custom words, snippets, allowlisted settings, and non-hidden dictation text
-  - Off by default on every device; while off, no CloudKit API is called
-  - User's own private CloudKit database; transcript and snippet text end-to-end encrypted
-  - Never syncs audio, audio paths, hidden dictations, file transcriptions, LLM config, or API keys
 
 ### What uses the network (user-initiated)
 
@@ -96,13 +90,12 @@ Cloud LLM costs are paid directly by the user to their provider (Anthropic, Open
 - **Messaging complexity**: "100% local" was simpler than "local-first with opt-in cloud." Must be communicated clearly and honestly.
 - **Cloud LLM features require internet**: Summarization/chat won't work offline unless user runs Ollama. Transcription still works offline.
 - **Transcript text exposure**: When using cloud providers, transcript text is sent to third-party servers. Must be clear in UI. Users with sensitive content should use Ollama or skip LLM features.
-- **No cloud backup by default**: User data stays on-device unless the user enables iCloud sync (ADR-013). With sync off, losing the device loses dictation history. This is intentional.
-- **No collaborative features**: Real-time sharing and team vocabularies would require MacParakeet-operated infrastructure. These are out of scope. Personal cross-device sync uses the user's own iCloud (ADR-013).
+- **No cloud backup or sync**: User data stays on-device. If the Mac is lost, dictation history is lost. This is intentional.
+- **No collaborative features**: Real-time sharing, team vocabularies, or cross-device sync would require cloud infrastructure. These are out of scope.
 
 ## References
 
 - ADR-011: LLM via cloud API keys + optional local providers
-- ADR-013: iOS companion app + opt-in iCloud sync (proposed)
 - ADR-008: Previous local LLM approach (HISTORICAL — removed 2026-02-23)
 - WisprFlow Trustpilot reviews: 2.8/5 average, common complaints about delays and reliability
 - Reddit r/macapps sentiment: strong preference for local processing

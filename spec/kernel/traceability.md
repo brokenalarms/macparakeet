@@ -73,4 +73,3 @@ Planned paths; update when implemented.
 | REQ-IOS-003 | `contracts/ios_keyboard_session_ipc.yaml` | `iOS/Keyboard/KeyboardViewController.swift`, `iOS/Keyboard/AppLauncher.swift`, `iOS/Shared/SessionIPC.swift` | `iOS/Tests/KeyboardViewStateTests.swift` |
 | REQ-IOS-004 | — | `iOS/App/Views/Onboarding/`, `MacParakeetViewModels/OnboardingViewModel.swift` | `OnboardingViewModelTests.swift` |
 | REQ-IOS-005 | — | `iOS/App/Views/`, `MacParakeetViewModels/` | existing ViewModel tests |
-| REQ-SYNC-001 | `contracts/icloud_sync.yaml` | `MacParakeetCore/Sync/SyncService.swift`, `MacParakeetCore/Sync/SyncRecordMapper.swift` | `SyncRecordMapperTests.swift`, `SyncMergeTests.swift` |

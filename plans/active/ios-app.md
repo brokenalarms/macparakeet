@@ -7,8 +7,8 @@
 Ship an iPhone companion to MacParakeet scoped to the **WisprFlow feature set**:
 dictate into any app via a minimal custom keyboard, with Parakeet running locally
 on the Neural Engine, the same clean pipeline (custom words, snippets, filler
-removal), dictation history, and opt-in iCloud sync of vocabulary, snippets,
-settings, and history with the Mac app.
+removal), and dictation history. The iOS app is standalone: all data is
+per-device, with no sync to the Mac app.
 
 The keyboard is a **launcher, not a real keyboard**: a mic button, globe key, and
 a few utility keys. Users switch back to their normal keyboard (globe) to type.
@@ -19,8 +19,7 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 2. Minimal keyboard extension that triggers dictation and inserts the result
 3. Background dictation session in the host app (WisprFlow-style "open app → tap Back")
 4. History, custom words, snippets, processing mode, settings screens
-5. Opt-in iCloud sync (CloudKit) between Mac and iOS
-6. Optional: cloud LLM refinement reusing existing providers (already exists in Core)
+5. Optional: cloud LLM refinement reusing existing providers (already exists in Core)
 
 ### Out of scope
 
@@ -30,13 +29,15 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 - A full typing keyboard (swipe, autocorrect, layouts)
 - Shortcut/Action Button triggers (possible later via `AudioRecordingIntent`)
 - iPad-specific layout, Sparkle, LemonSqueezy licensing
+- Sync of any kind between Mac and iOS (per-device data for MVP; would need
+  changes to both apps, revisit with its own ADR)
 
 ### Invariants (must not change)
 
-- Mac app behavior and `swift test` suite stay green throughout
-- Audio never leaves the device; sync carries text only, never audio
-- Sync is **off by default**; with it off, the iOS app makes no network calls
-  except model download (and telemetry, opt-out as on Mac)
+- Mac app behavior unchanged; `swift test` stays green throughout
+- No changes to `Sources/MacParakeet`, `Sources/CLI`, or `scripts/dist`
+- Audio and text never leave the device; the iOS app's only network calls are
+  model download and telemetry (opt-out, as on Mac)
 - `MacParakeetCore` stays UI-free (no UIKit/SwiftUI imports)
 
 ## Design Decisions
@@ -151,44 +152,20 @@ FluidAudio downloads Parakeet v3 into the app container on first launch
 (onboarding step, Wi-Fi recommended, progress UI, resumable). Check free space
 before download. Exclude model dir from iCloud backup (`isExcludedFromBackup`).
 
-### D7. iCloud sync
-
-- **Engine:** `CKSyncEngine` (iOS 17 / macOS 14), private database, one custom zone.
-- **Synced record types:** `CustomWord`, `TextSnippet`, `Dictation` (text +
-  metadata only; no audio), settings (processing mode, etc.).
-- **IDs:** existing UUID primary keys map directly to `CKRecord.ID`.
-- **Change tracking:** synced tables already have `updatedAt`; each gains a
-  soft-delete tombstone (`deletedAt`) via one GRDB migration per table. Unique
-  indexes on `custom_words.word` / `text_snippets.trigger` become partial
-  (`WHERE deletedAt IS NULL`). A `SyncService` in Core observes repo writes and
-  enqueues pending changes.
-- **Duplicate natural keys:** the same word/trigger created on both devices has
-  two UUIDs; inbound merge keeps the earlier `createdAt` and tombstones the other.
-- **Conflicts:** last-writer-wins on `updatedAt`, per record.
-- **Privacy:** transcript text fields use `CKRecord.encryptedValues`
-  (end-to-end encrypted). Toggle in Settings on both platforms, default off.
-- **Mac distribution:** Developer ID apps can use CloudKit but need an
-  iCloud entitlement + embedded provisioning profile → update
-  `scripts/dist/build_app_bundle.sh` / `sign_notarize.sh`.
-- **Spec:** `spec/kernel/contracts/icloud_sync.yaml` (field allowlist, merges,
-  never-synced data), ADR-002 proposed amendment, `spec/01-data-model.md`
-  § Sync Tombstones.
-
 ## Implementation Steps
 
 Each phase ends with a verifiable gate. Phases 1–2 can be built and tested on
 a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 
 ### Phase 0 — Spec (before code) ✅
-1. ✅ `spec/kernel/requirements.yaml`: `REQ-IOS-001`…`005`, `REQ-SYNC-001`
+1. ✅ `spec/kernel/requirements.yaml`: `REQ-IOS-001`…`005`
    (status `proposed`, with acceptance criteria)
 2. ✅ `spec/kernel/contracts/ios_keyboard_session_ipc.yaml` (session/command
    files, notification names, keyboard view-state derivation, error codes)
 3. ✅ `spec/kernel/state_machines/ios_dictation_session.yaml`
-4. ✅ `spec/kernel/contracts/icloud_sync.yaml`
-5. ✅ ADR-013 (proposed) + ADR-002 proposed amendment
-6. ✅ `spec/README.md` roadmap, `spec/01-data-model.md`, `traceability.md`
-7. **Gate:** ADR-013 accepted by maintainer → flip requirements to `active`.
+4. ✅ ADR-013 (proposed)
+5. ✅ `spec/README.md` roadmap, `spec/01-data-model.md`, `traceability.md`
+6. **Gate:** ADR-013 accepted by maintainer → flip requirements to `active`.
 
 ### Phase 1 — Core builds for iOS
 1. Apply D4 guards; add `.iOS(.v17)` platform.
@@ -216,16 +193,9 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
    dictation inserts text; second dictation needs no app switch; app killed →
    next tap reopens app; phone call interruption recovers.
 
-### Phase 4 — iCloud sync
-1. Migration: `updatedAt`, `deletedAt` on synced tables (+ DB tests).
-2. `SyncService` (Core) on `CKSyncEngine`; record mappers + mapper unit tests.
-3. Settings toggle on Mac + iOS; Mac signing changes.
-4. **Gate:** add word on Mac → appears on iPhone; delete on iPhone → gone on
-   Mac; offline edits on both converge; toggle off stops all CloudKit traffic.
-
-### Phase 5 — Ship
-1. App Store metadata, privacy nutrition label (mic; no data collected unless
-   sync/telemetry), keyboard Full Access justification for review.
+### Phase 4 — Ship
+1. App Store metadata, privacy nutrition label (mic; no data collected except
+   opt-out telemetry), keyboard Full Access justification for review.
 2. TestFlight, then App Store.
 3. Update CLAUDE.md, README, spec progress, traceability; archive this plan.
 
@@ -237,10 +207,8 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 | CoreML/ANE inference throttled in background | Verify in Phase 2 on device with app backgrounded; fallback is transcribing when the app is foregrounded |
 | App Review rejects background audio for "holding" mic | Live Activity indicator + user-visible session timeout; WisprFlow precedent |
 | Model size on phone storage | Space check + clear messaging; consider smaller variant later |
-| CloudKit with Developer ID Mac builds | Prototype entitlement/profile early in Phase 4 |
 | Agent can't build iOS on Linux | Run Claude Code locally on a Mac with Xcode for Phases 1–3 |
 | GRDB DB in App Group container killed on suspend (`0xdead10cc`) | Enable GRDB `observesSuspensionNotifications`; only the host app opens the DB |
-| Device offline > 30 days resurrects purged-tombstone records | Accept for v1; revisit if reported |
 
 ## Files Changed
 
