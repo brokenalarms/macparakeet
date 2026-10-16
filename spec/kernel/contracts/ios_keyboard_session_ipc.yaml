@@ -32,6 +32,7 @@ output:
     result:                    # optional
       requestID: uuid
       text: string             # post-pipeline text; empty string for empty transcript
+      postAction: optional KeyAction rawValue   # "return" from a Voice Return snippet
       completedAt: iso8601
     error:                     # optional
       requestID: optional uuid
@@ -60,5 +61,6 @@ invariants:
   - A start command is ignored unless state == ready; stop/cancel are ignored unless requestID == activeRequestID
   - The keyboard inserts result.text only if result.requestID is in its own issued set and has not been inserted before
   - Empty result.text is never inserted and never surfaced as an error
+  - postAction "return" is performed after result.text by textDocumentProxy.insertText("\n"); it is performed even when text is empty
   - No audio, audio paths, or model files are written to the App Group ipc directory
   - The keyboard extension reads and writes only the ipc directory; it never opens macparakeet.db
