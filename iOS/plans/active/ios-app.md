@@ -1,6 +1,6 @@
 # iOS App (MacParakeet for iPhone) Implementation Plan
 
-> Status: **PROPOSAL** - 2026-10-16 (Phase 0 spec complete; awaiting iOS ADR-001 acceptance)
+> Status: **ACTIVE** - 2026-10-16 (Phase 0 complete; Phase 1 next)
 
 ## Overview
 
@@ -179,13 +179,13 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 
 ### Phase 0 — Spec (before code) ✅
 1. ✅ `iOS/spec/kernel/requirements.yaml`: `REQ-IOS-001`…`005`
-   (status `proposed`, with acceptance criteria)
+   (status `active`, with acceptance criteria)
 2. ✅ `iOS/spec/kernel/contracts/keyboard_session_ipc.yaml` (session/command
    files, notification names, keyboard view-state derivation, error codes)
 3. ✅ `iOS/spec/kernel/state_machines/dictation_session.yaml`
-4. ✅ `iOS/spec/adr/001-ios-companion-app.md` (proposed)
+4. ✅ `iOS/spec/adr/001-ios-companion-app.md` (accepted)
 5. ✅ `iOS/spec/kernel/traceability.md`
-6. **Gate:** iOS ADR-001 accepted by maintainer → flip requirements to `active`.
+6. ✅ **Gate:** iOS ADR-001 accepted by maintainer → flip requirements to `active`.
 
 ### Phase 1 — Core builds for iOS
 1. `iOS/project.yml` with the `MacParakeetCoreiOS` target and D4 exclude list;

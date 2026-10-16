@@ -1,5 +1,5 @@
 name: dictation_session
-status: proposed
+status: active
 requirements: [REQ-IOS-002]
 owner: host app (DictationSessionController)
 initial: inactive

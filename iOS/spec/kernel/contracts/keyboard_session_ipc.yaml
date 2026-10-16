@@ -1,5 +1,5 @@
 name: keyboard_session_ipc
-status: proposed
+status: active
 requirements: [REQ-IOS-002, REQ-IOS-003]
 source: iOS/spec/adr/001-ios-companion-app.md
 

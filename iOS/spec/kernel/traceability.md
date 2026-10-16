@@ -1,6 +1,6 @@
 # iOS Traceability Matrix
 
-> Status: **PROPOSAL** — planned paths; update when implemented.
+> Status: **ACTIVE** — planned paths; update when implemented.
 
 | Requirement | Contract / State Machine | Source Files | Test Files |
 |------------|-------------------------|-------------|------------|

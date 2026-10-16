@@ -1,6 +1,6 @@
 # iOS ADR-001: iOS Companion App (Keyboard-Launched Dictation)
 
-> Status: **PROPOSED** | Date: 2026-10-16
+> Status: **ACCEPTED** | Date: 2026-10-16
 > Plan: `iOS/plans/active/ios-app.md`
 > Mac ADRs referenced here live in `spec/adr/` and are not modified; the Mac spec does not reference iOS.
 > Kernel: `REQ-IOS-001`…`REQ-IOS-005`

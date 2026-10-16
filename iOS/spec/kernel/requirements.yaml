@@ -8,7 +8,7 @@
 REQ-IOS-001:
   description: iOS host app builds from shared MacParakeetCore and dictates in-app with the clean pipeline
   version: ios-v1
-  status: proposed
+  status: active
   priority: p0
   source: iOS/spec/adr/001-ios-companion-app.md
   acceptance:
@@ -22,7 +22,7 @@ REQ-IOS-001:
 REQ-IOS-002:
   description: Host app holds a background dictation session with heartbeat and idle timeout
   version: ios-v1
-  status: proposed
+  status: active
   priority: p0
   source: iOS/spec/adr/001-ios-companion-app.md
   contract: iOS/spec/kernel/contracts/keyboard_session_ipc.yaml
@@ -37,7 +37,7 @@ REQ-IOS-002:
 REQ-IOS-003:
   description: Keyboard extension starts/stops dictation and inserts the result via textDocumentProxy
   version: ios-v1
-  status: proposed
+  status: active
   priority: p0
   source: iOS/spec/adr/001-ios-companion-app.md
   contract: iOS/spec/kernel/contracts/keyboard_session_ipc.yaml
@@ -53,7 +53,7 @@ REQ-IOS-003:
 REQ-IOS-004:
   description: First-run onboarding covers model download, microphone, keyboard install, and Full Access
   version: ios-v1
-  status: proposed
+  status: active
   priority: p1
   source: iOS/spec/adr/001-ios-companion-app.md
   acceptance:
@@ -65,7 +65,7 @@ REQ-IOS-004:
 REQ-IOS-005:
   description: iOS history, vocabulary (processing mode, custom words, snippets), and settings screens
   version: ios-v1
-  status: proposed
+  status: active
   priority: p1
   source: iOS/spec/adr/001-ios-companion-app.md
   acceptance:
