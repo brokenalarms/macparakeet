@@ -1,6 +1,6 @@
 # iOS App (MacParakeet for iPhone) Implementation Plan
 
-> Status: **PROPOSAL** - 2026-10-16 (Phase 0 spec complete; awaiting ADR-013 acceptance)
+> Status: **PROPOSAL** - 2026-10-16 (Phase 0 spec complete; awaiting iOS ADR-001 acceptance)
 
 ## Overview
 
@@ -24,7 +24,7 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 ### Out of scope
 
 - File transcription, YouTube, FFmpeg, video player, diarization, library view
-- Optional LLM text features from ADR-011 (summary/chat/refinement via user API
+- Optional LLM text features from Mac ADR-011 (summary/chat/refinement via user API
   keys). Their provider routing depends on `LocalCLIExecutor`, which uses
   `Process` and cannot build on iOS. Parakeet STT is unaffected.
 - Non-Parakeet models
@@ -37,8 +37,8 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 ### Invariants (must not change)
 
 - Mac app behavior unchanged; `swift test` stays green throughout
-- No changes outside `iOS/`, `spec/`, and `plans/`: `Sources/`, `Tests/`,
-  `Package.swift`, and `scripts/` are untouched. Mac upstream merges stay clean.
+- No changes outside `iOS/`. The Mac app, its spec, and its docs do not know
+  the iOS app exists; iOS only consumes existing Mac code. Upstream merges stay clean.
 - Audio and text never leave the device; the iOS app's only network calls are
   model download and telemetry (opt-out, as on Mac)
 - `iOS/` stays self-contained, so it can move to its own repo by replacing the
@@ -106,9 +106,9 @@ Excluded from the iOS build (verified by grepping cross-references):
 | `Audio/AudioRecorder.swift`, `AudioDeviceManager.swift` | CoreAudio device APIs | `RecordingDeviceInfo` (used by `AudioProcessorProtocol`, `AudioProcessor`, `TelemetryEvent`) |
 | `Audio/AudioProcessor.swift`, `AudioFileConverter.swift` | FFmpeg file conversion | `AudioProcessorProtocol` conformer for `DictationService` |
 | `Services/AccessibilityService`, `ClipboardService`, `PermissionService`, `LaunchAtLoginService` | AppKit / AX / SMAppService | none; iOS has its own mic permission helper |
-| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService` | `Process` | none (ADR-011 LLM text features out of scope; Parakeet STT unaffected) |
+| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService` | `Process` | none (Mac ADR-011 LLM text features out of scope; Parakeet STT unaffected) |
 | `Services/YouTubeDownloader`, `VideoStreamService`, `ThumbnailCacheService`, `BinaryBootstrap`, `ExportService`, `AutoSaveService`, `TranscriptionService`, `DiarizationService` | file/YouTube features | none |
-| `STT/FnKeyStateMachine`, `HotkeyTrigger`, `KeyCodeNames`, `DictationFlow/DictationFlowStateMachine` | hotkey flow | none; iOS session uses `ios_dictation_session` |
+| `STT/FnKeyStateMachine`, `HotkeyTrigger`, `KeyCodeNames`, `DictationFlow/DictationFlowStateMachine` | hotkey flow | none; iOS session uses `dictation_session` state machine |
 
 iOS replacements live in `iOS/CoreReplacements/` and compile into the same
 `MacParakeetCoreiOS` target:
@@ -178,14 +178,14 @@ Each phase ends with a verifiable gate. Phases 1–2 can be built and tested on
 a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 
 ### Phase 0 — Spec (before code) ✅
-1. ✅ `spec/kernel/requirements.yaml`: `REQ-IOS-001`…`005`
+1. ✅ `iOS/spec/kernel/requirements.yaml`: `REQ-IOS-001`…`005`
    (status `proposed`, with acceptance criteria)
-2. ✅ `spec/kernel/contracts/ios_keyboard_session_ipc.yaml` (session/command
+2. ✅ `iOS/spec/kernel/contracts/keyboard_session_ipc.yaml` (session/command
    files, notification names, keyboard view-state derivation, error codes)
-3. ✅ `spec/kernel/state_machines/ios_dictation_session.yaml`
-4. ✅ ADR-013 (proposed)
-5. ✅ `spec/README.md` roadmap, `spec/01-data-model.md`, `traceability.md`
-6. **Gate:** ADR-013 accepted by maintainer → flip requirements to `active`.
+3. ✅ `iOS/spec/kernel/state_machines/dictation_session.yaml`
+4. ✅ `iOS/spec/adr/001-ios-companion-app.md` (proposed)
+5. ✅ `iOS/spec/kernel/traceability.md`
+6. **Gate:** iOS ADR-001 accepted by maintainer → flip requirements to `active`.
 
 ### Phase 1 — Core builds for iOS
 1. `iOS/project.yml` with the `MacParakeetCoreiOS` target and D4 exclude list;
@@ -193,7 +193,7 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 2. `CoreReplacements/`: `RecordingDeviceInfo`, `MobileAudioProcessor`.
 3. Extend the exclude list or add replacements until the target compiles.
 4. **Gate:** `make -C iOS build` (iOS Simulator) succeeds; `swift test` green
-   on macOS; `git diff main -- Sources Tests Package.swift scripts` is empty.
+   on macOS; `git diff --stat main -- . ':!iOS'` is empty.
 
 ### Phase 2 — Host app skeleton
 1. Create `iOS/` Xcode project, App Group, URL scheme, background audio mode.
@@ -219,7 +219,8 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 1. App Store metadata, privacy nutrition label (mic; no data collected except
    opt-out telemetry), keyboard Full Access justification for review.
 2. TestFlight, then App Store.
-3. Update CLAUDE.md, README, spec progress, traceability; archive this plan.
+3. Update `iOS/CLAUDE.md`, `iOS/spec/kernel/traceability.md`, requirement
+   statuses; archive this plan to `iOS/plans/completed/`.
 
 ## Risks
 

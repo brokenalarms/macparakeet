@@ -4,7 +4,7 @@
 
 ## Overview
 
-MacParakeet uses **SQLite via GRDB** for all persistent storage. Single database file, no cloud sync, no accounts. Data lives at `~/Library/Application Support/MacParakeet/macparakeet.db` on macOS; on iOS (proposed, ADR-013) it lives in the App Group container `group.com.macparakeet`, separate from the Mac database.
+MacParakeet uses **SQLite via GRDB** for all persistent storage. Single database file, no cloud sync, no accounts. Data lives at `~/Library/Application Support/MacParakeet/macparakeet.db`.
 
 **Design Principle (YAGNI):** Only add tables when a version needs them. Don't create empty tables for future features.
 
@@ -565,7 +565,6 @@ migrator.registerMigration("v0.5-transcription-video-metadata") { db in
 | `transcriptions.channelName` | v0.5 | YouTube channel name |
 | `transcriptions.videoDescription` | v0.5 | YouTube video description |
 | `transcriptions.isFavorite` | v0.5 | User favorite marker |
-| `text_snippets.action` | v0.7 | Key action appended after expansion |
 
 ### Tables NOT Planned (YAGNI)
 

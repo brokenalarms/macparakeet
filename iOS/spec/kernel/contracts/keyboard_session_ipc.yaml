@@ -1,7 +1,7 @@
-name: ios_keyboard_session_ipc
+name: keyboard_session_ipc
 status: proposed
 requirements: [REQ-IOS-002, REQ-IOS-003]
-source: spec/adr/013-ios-companion-app.md
+source: iOS/spec/adr/001-ios-companion-app.md
 
 transport:
   app_group: group.com.macparakeet

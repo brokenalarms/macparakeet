@@ -1,4 +1,4 @@
-name: ios_dictation_session
+name: dictation_session
 status: proposed
 requirements: [REQ-IOS-002]
 owner: host app (DictationSessionController)
