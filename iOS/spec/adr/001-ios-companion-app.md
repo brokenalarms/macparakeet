@@ -42,6 +42,10 @@ iOS 17 is the lowest version providing every API the app needs (`AVAudioApplicat
 
 The iOS app keeps its own database, vocabulary, and settings. Sync would require changes to the Mac app as well; it is out of scope. Mac ADR-002 applies unchanged: audio and text never leave the device.
 
+### 6. No telemetry or other network services
+
+The iOS app sends nothing anywhere. The only network access is the one-time Parakeet model download from Hugging Face. Mac ADR-012 telemetry does not apply to iOS. Telemetry, crash reporting, feedback, Discover, and licensing files are excluded from the iOS build. A no-op `Telemetry` facade in `iOS/CoreReplacements/` means shared code that calls `Telemetry.send` compiles, but no transport is in the binary.
+
 ## Rationale
 
 - **Host-app STT is the only viable option.** The keyboard memory cap rules out on-keyboard inference; Apple's `SFSpeechRecognizer` would break Mac ADR-001 and Mac ADR-002.
@@ -74,4 +78,4 @@ See `iOS/plans/active/ios-app.md` § Risks.
 - Mac ADR-001, Mac ADR-007: Parakeet via FluidAudio CoreML (shared on iOS)
 - Mac ADR-002: Local-first processing (applies unchanged)
 - Mac ADR-004: Deterministic pipeline (unchanged, shared)
-- Mac ADR-012: Telemetry (applies to iOS unchanged, opt-out)
+- Mac ADR-012: Telemetry (does not apply to iOS; see Decision 6)

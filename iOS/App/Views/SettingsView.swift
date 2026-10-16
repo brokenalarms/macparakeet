@@ -1,10 +1,8 @@
-import MacParakeetCore
 import SwiftUI
 
 struct SettingsView: View {
     @AppStorage(AppSettings.saveDictationHistoryKey) private var saveDictationHistory = true
     @AppStorage(AppSettings.idleTimeoutMinutesKey) private var idleTimeoutMinutes = AppSettings.defaultIdleTimeoutMinutes
-    @AppStorage(AppPreferences.telemetryEnabledKey) private var telemetryEnabled = true
 
     var body: some View {
         NavigationStack {
@@ -28,12 +26,11 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("Anonymous usage stats", isOn: $telemetryEnabled)
-                        .onChange(of: telemetryEnabled) { _, enabled in
-                            if !enabled { Telemetry.send(.telemetryOptedOut) }
-                        }
-                } footer: {
-                    Text("No audio or text is ever sent. Dictation works fully offline once the model is downloaded.")
+                    Text("Audio, text, and usage never leave this iPhone. The only network access is the one-time speech model download.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Privacy")
                 }
             }
             .navigationTitle("Settings")

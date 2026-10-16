@@ -14,7 +14,6 @@ final class AppEnvironment {
     let audioProcessor: MobileAudioProcessor
     let dictationService: DictationService
     let session: DictationSessionController
-    let telemetry: TelemetryService
 
     init() throws {
         try AppPaths.ensureDirectories()
@@ -45,9 +44,5 @@ final class AppEnvironment {
             isModelReady: { STTClient.isModelCached() },
             idleTimeout: { .seconds(AppSettings.idleTimeoutMinutes() * 60) }
         )
-
-        telemetry = TelemetryService()
-        Telemetry.configure(telemetry)
-        Telemetry.send(.appLaunched)
     }
 }

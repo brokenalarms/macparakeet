@@ -62,6 +62,14 @@ targets:
           - STT/HotkeyTrigger.swift
           - STT/KeyCodeNames.swift
           - DictationFlow/DictationFlowStateMachine.swift
+          # No network code on iOS beyond the model download (local-first)
+          - Services/TelemetryService.swift
+          - Services/CrashReporter.swift
+          - Services/FeedbackService.swift
+          - Services/DiscoverService.swift
+          - Services/DiscoverThoughtsService.swift
+          - Licensing/LemonSqueezyLicenseAPI.swift
+          - Licensing/EntitlementsService.swift
       - path: CoreReplacements
     dependencies:
       - package: GRDB

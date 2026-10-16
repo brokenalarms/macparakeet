@@ -18,6 +18,7 @@ REQ-IOS-001:
     - Clean mode (filler removal, custom words, snippets) produces the same output as macOS for the same raw transcript, custom words, and snippets, because both compile the same TextProcessingPipeline source
     - Processing mode defaults to raw (as on macOS) and is selectable as raw or clean in Vocabulary
     - Audio is captured and transcribed on device; no network request is made during dictation
+    - The iOS build contains no telemetry, crash-report, feedback, or licensing network code; the only network access is the speech model download
 
 REQ-IOS-002:
   description: Host app holds a background dictation session with heartbeat and idle timeout

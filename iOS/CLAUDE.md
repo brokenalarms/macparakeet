@@ -1,6 +1,6 @@
 # CLAUDE.md — iOS
 
-MacParakeet for iPhone: local Parakeet dictation via a launcher keyboard. Dictation only; per-device data; no sync; no LLM text features.
+MacParakeet for iPhone: local Parakeet dictation via a launcher keyboard. Dictation only; per-device data; no sync; no LLM text features; no telemetry (the only network access is the model download).
 
 ## Hard rule
 
@@ -39,4 +39,5 @@ To sign for a device, create `Config/Local.xcconfig` (gitignored) with your `DEV
 - **FluidAudio 0.12.5 does not compile on Xcode 26.6** (Swift 6 `sending` data-race errors in `StreamingAsrManager.swift`), on macOS as well as iOS. It's an upstream/toolchain issue, not an iOS one. See the plan's Phase 1 gate note.
 - **If a shared file starts referencing an excluded one, add it to the `excludes` list** when it's only used by excluded code (as with `LLMClient` and `SpeakerMerger`). Otherwise add a replacement in `CoreReplacements/`.
 - **The test target is unhosted.** It compiles `Shared/` and the testable `App/` files directly. When a new `App/` file needs tests, add it to `MacParakeetiOSTests.sources`.
+- **Never compile network code into iOS.** Telemetry, crash reporting, feedback, Discover, and licensing stay in `excludes`. `CoreReplacements/Telemetry.swift` is a no-op facade, so don't call `Telemetry.configure` or wire a `TelemetryService`.
 - **The database lives in the app's private container, not the App Group.** Only `ipc/*.json` is shared with the keyboard.

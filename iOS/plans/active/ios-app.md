@@ -39,8 +39,9 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 - Mac app behavior unchanged; `swift test` stays green throughout
 - No changes outside `iOS/`. The Mac app, its spec, and its docs do not know
   the iOS app exists; iOS only consumes existing Mac code. Upstream merges stay clean.
-- Audio and text never leave the device; the iOS app's only network calls are
-  model download and telemetry (opt-out, as on Mac)
+- Audio, text, and usage data never leave the device. The iOS app's only network
+  access is the model download. No telemetry, crash reporting, feedback, or licensing
+  code is compiled in (iOS ADR-001 Decision 6)
 - `iOS/` stays self-contained, so it can move to its own repo by replacing the
   `../Sources` path with a submodule
 
@@ -119,9 +120,13 @@ iOS replacements live in `iOS/CoreReplacements/` and compile into the same
   interruption and route-change handling
 
 `DictationService`, `STTClient`, `TextProcessingPipeline`, `TextRefinementService`,
-repositories, models, `DatabaseManager`, and telemetry compile unchanged.
-`CrashReporter` (MachO) and `SystemInfo` (`sysctlbyname`) are expected to
-compile on iOS; Phase 1 verifies this and excludes them if not.
+repositories, models, and `DatabaseManager` compile unchanged.
+
+Network-capable files are excluded even though they compile: `TelemetryService`,
+`CrashReporter`, `FeedbackService`, `DiscoverService`, `DiscoverThoughtsService`,
+`LemonSqueezyLicenseAPI`, and `EntitlementsService`. `CoreReplacements/Telemetry.swift`
+is a no-op `Telemetry` facade, so shared calls to `Telemetry.send` compile and do
+nothing.
 
 From `Sources/MacParakeetViewModels`, only `CustomWordsViewModel` and
 `TextSnippetsViewModel` are compiled in. Other iOS screens get iOS-specific
@@ -177,7 +182,7 @@ reaches Swift through the `MacParakeetAppGroup` Info.plist key.
 
 The test target is unhosted: it compiles `Shared/` and the testable `App/`
 files directly and links `MacParakeetCoreiOS`, so tests never launch the app
-(no DB, no telemetry).
+(no DB).
 
 ### D6. Model download
 
@@ -203,7 +208,7 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 ### Phase 1 — Core builds for iOS
 1. `iOS/project.yml` with the `MacParakeetCoreiOS` target and D4 exclude list;
    `iOS/Makefile`; gitignore the generated `.xcodeproj`.
-2. `CoreReplacements/`: `RecordingDeviceInfo`, `MobileAudioProcessor`.
+2. `CoreReplacements/`: `RecordingDeviceInfo`, `MobileAudioProcessor`, no-op `Telemetry`.
 3. Extend the exclude list or add replacements until the target compiles.
 4. **Gate:** `make -C iOS build` (iOS Simulator) succeeds; `swift test` green
    on macOS; `git diff --stat main -- . ':!iOS'` is empty.
@@ -239,8 +244,7 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
    next tap reopens app; phone call interruption recovers.
 
 ### Phase 4 — Ship
-1. App Store metadata, privacy nutrition label (mic; no data collected except
-   opt-out telemetry), keyboard Full Access justification for review.
+1. App Store metadata, privacy nutrition label (mic; Data Not Collected), keyboard Full Access justification for review.
 2. TestFlight, then App Store.
 3. Update `iOS/CLAUDE.md`, `iOS/spec/kernel/traceability.md`, requirement
    statuses; archive this plan to `iOS/plans/completed/`.
