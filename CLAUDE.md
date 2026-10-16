@@ -94,7 +94,6 @@ All ADRs are in `spec/adr/`. These are locked decisions -- don't second-guess th
 | ADR-010 | Speaker diarization via FluidAudio offline pipeline | `spec/adr/010-speaker-diarization.md` |
 | ADR-011 | LLM via cloud API keys + optional local providers | `spec/adr/011-llm-cloud-and-local-providers.md` |
 | ADR-012 | Self-hosted telemetry via Cloudflare (Worker + D1) | `spec/adr/012-telemetry-system.md` |
-| ADR-013 | iOS companion app (proposed) | `spec/adr/013-ios-companion-app.md` |
 
 ## Current Phase
 

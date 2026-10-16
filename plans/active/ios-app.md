@@ -15,16 +15,17 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 
 ### In scope
 
-1. iOS app target sharing `MacParakeetCore` (Parakeet STT, pipeline, GRDB repos)
+1. iOS app in `iOS/` compiling `Sources/MacParakeetCore` in place (Parakeet STT,
+   pipeline, GRDB repos) with zero edits to the Mac sources
 2. Minimal keyboard extension that triggers dictation and inserts the result
 3. Background dictation session in the host app (WisprFlow-style "open app → tap Back")
 4. History, custom words, snippets, processing mode, settings screens
-5. Optional: cloud LLM refinement reusing existing providers (already exists in Core)
 
 ### Out of scope
 
 - File transcription, YouTube, FFmpeg, video player, diarization, library view
-- Local CLI LLM providers (`LocalCLIExecutor` — no `Process` on iOS)
+- All LLM features (the routing client depends on `LocalCLIExecutor`, which
+  uses `Process` and cannot build on iOS)
 - Non-Parakeet models
 - A full typing keyboard (swipe, autocorrect, layouts)
 - Shortcut/Action Button triggers (possible later via `AudioRecordingIntent`)
@@ -35,10 +36,12 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 ### Invariants (must not change)
 
 - Mac app behavior unchanged; `swift test` stays green throughout
-- No changes to `Sources/MacParakeet`, `Sources/CLI`, or `scripts/dist`
+- No changes outside `iOS/`, `spec/`, and `plans/`: `Sources/`, `Tests/`,
+  `Package.swift`, and `scripts/` are untouched. Mac upstream merges stay clean.
 - Audio and text never leave the device; the iOS app's only network calls are
   model download and telemetry (opt-out, as on Mac)
-- `MacParakeetCore` stays UI-free (no UIKit/SwiftUI imports)
+- `iOS/` stays self-contained, so it can move to its own repo by replacing the
+  `../Sources` path with a submodule
 
 ## Design Decisions
 
@@ -87,64 +90,80 @@ The keyboard requires `RequestsOpenAccess = YES` (App Group access). Onboarding
 explains why before the user hits Apple's warning. Without Full Access the
 keyboard shows a single "Enable Full Access in Settings" prompt.
 
-### D4. Core platform split
+### D4. Sharing Core without editing it
 
-Keep one `MacParakeetCore` target, guard macOS-only files with `#if os(macOS)`
-(cheaper than a new target, keeps imports unchanged). Files:
+The iOS project compiles files from `../Sources/MacParakeetCore` directly into
+an iOS framework target (`MacParakeetCoreiOS`), **excluding** macOS-only files.
+The iOS app provides replacements for the excluded files that shared code needs.
+No `#if os(macOS)` guards and no `Package.swift` changes. The module name stays
+`MacParakeetCore` (`PRODUCT_MODULE_NAME`) so the shared files' imports work unchanged.
 
-| File | Action |
-|------|--------|
-| `Services/AccessibilityService.swift` | `#if os(macOS)` |
-| `Services/ClipboardService.swift` | `#if os(macOS)` |
-| `Services/PermissionService.swift` | split: mic permission shared, AX macOS-only |
-| `Services/LaunchAtLoginService.swift` | `#if os(macOS)` |
-| `Services/LocalCLIExecutor.swift`, `LocalCLILLMClient.swift` | `#if os(macOS)`; `RoutingLLMClient` skips local providers on iOS |
-| `Services/YouTubeDownloader.swift`, `VideoStreamService.swift`, `ThumbnailCacheService.swift`, `BinaryBootstrap.swift` | `#if os(macOS)` |
-| `Services/ExportService.swift` | `#if os(macOS)` (no export on iOS v1) |
-| `Audio/AudioDeviceManager.swift` | `#if os(macOS)` |
-| `Audio/AudioRecorder.swift` | abstract device selection; iOS path configures `AVAudioSession` (`.playAndRecord`/`.record`, `.measurement`, `allowBluetooth`) and handles interruptions + route changes |
-| `Audio/AudioFileConverter.swift` | `#if os(macOS)` (FFmpeg) |
-| `STT/FnKeyStateMachine.swift`, `STT/HotkeyTrigger.swift`, `STT/KeyCodeNames.swift` | `#if os(macOS)` |
-| `Services/CrashReporter.swift` | verify Mach APIs compile on iOS; else guard |
-| `Licensing/*` | keep compiling; iOS passes `entitlements: nil` |
+Excluded from the iOS build (verified by grepping cross-references):
 
-`DictationService` already takes protocol dependencies (`AudioProcessorProtocol`,
-`STTClientProtocol`, repos) and needs no change. ViewModels: guard AppKit usage
-in `DictationHistoryViewModel` and `FeedbackViewModel`.
+| Excluded | Why | Shared code that needs a replacement |
+|----------|-----|--------------------------------------|
+| `Audio/AudioRecorder.swift`, `AudioDeviceManager.swift` | CoreAudio device APIs | `RecordingDeviceInfo` (used by `AudioProcessorProtocol`, `AudioProcessor`, `TelemetryEvent`) |
+| `Audio/AudioProcessor.swift`, `AudioFileConverter.swift` | FFmpeg file conversion | `AudioProcessorProtocol` conformer for `DictationService` |
+| `Services/AccessibilityService`, `ClipboardService`, `PermissionService`, `LaunchAtLoginService` | AppKit / AX / SMAppService | none; iOS has its own mic permission helper |
+| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService` | `Process` | none (LLM out of scope) |
+| `Services/YouTubeDownloader`, `VideoStreamService`, `ThumbnailCacheService`, `BinaryBootstrap`, `ExportService`, `AutoSaveService`, `TranscriptionService`, `DiarizationService` | file/YouTube features | none |
+| `STT/FnKeyStateMachine`, `HotkeyTrigger`, `KeyCodeNames`, `DictationFlow/DictationFlowStateMachine` | hotkey flow | none; iOS session uses `ios_dictation_session` |
 
-`Package.swift`: add `.iOS(.v17)` to `platforms`. `swift-tools-version: 5.9`
-has no `.v18` constant, and bumping the tools version would switch all targets
-to the Swift 6 language mode — out of scope (ADR-013 §4). The Mac-only executable
-targets and Sparkle remain macOS (use `.when(platforms: [.macOS])` on the
-Sparkle dependency).
+iOS replacements live in `iOS/CoreReplacements/` and compile into the same
+`MacParakeetCoreiOS` target:
+
+- `RecordingDeviceInfo.swift`: same public shape as the macOS struct
+- `MobileAudioProcessor.swift`: `AudioProcessorProtocol` on `AVAudioEngine` +
+  `AVAudioSession` (`.playAndRecord`, `.measurement`, `.allowBluetooth`), with
+  interruption and route-change handling
+
+`DictationService`, `STTClient`, `TextProcessingPipeline`, `TextRefinementService`,
+repositories, models, `DatabaseManager`, and telemetry compile unchanged.
+`CrashReporter` (MachO) and `SystemInfo` (`sysctlbyname`) are expected to
+compile on iOS; Phase 1 verifies this and excludes them if not.
+
+From `Sources/MacParakeetViewModels`, only `CustomWordsViewModel` and
+`TextSnippetsViewModel` are compiled in. Other iOS screens get iOS-specific
+ViewModels in `iOS/App/`.
+
+If a future upstream change makes a shared file reference an excluded type, the
+iOS build breaks at that point; fix it by adding a replacement in
+`iOS/CoreReplacements/`, never by editing `Sources/`.
 
 ### D5. Project structure
 
-SPM can't build an iOS app with an app extension, so add an Xcode project for
-iOS only (Mac build scripts unchanged):
+The Xcode project is generated with **XcodeGen** from `iOS/project.yml`. The
+`.xcodeproj` is gitignored, so the project definition is a reviewable,
+agent-editable YAML file rather than a `.pbxproj`. GRDB and FluidAudio are
+declared as SPM packages in `project.yml`, pinned to the same versions as
+`Package.swift`.
 
 ```
 iOS/
-├── MacParakeetiOS.xcodeproj       # references local package ../
-├── App/                            # SwiftUI app (host)
+├── project.yml                     # XcodeGen: targets, sources, excludes, packages
+├── Makefile                        # `make project`, `make build`, `make test`
+├── CoreReplacements/               # iOS versions of excluded Core types (D4)
+├── App/                            # SwiftUI host app
 │   ├── MacParakeetiOSApp.swift
-│   ├── DictationSessionController.swift   # background audio session, IPC, heartbeat
+│   ├── DictationSessionController.swift   # session state machine, IPC, heartbeat
 │   ├── Views/ (Onboarding, Home, History, Vocabulary, Settings)
 │   └── Info.plist  (UIBackgroundModes: audio; URL scheme macparakeet://)
-├── Keyboard/                       # keyboard extension (no Core STT import)
+├── Keyboard/                       # keyboard extension
 │   ├── KeyboardViewController.swift
 │   ├── KeyboardView.swift          # SwiftUI: mic, globe, space, delete, return
 │   └── AppLauncher.swift
-└── Shared/                         # compiled into both targets
-    ├── SessionIPC.swift            # Darwin notify names + App Group session file
-    └── AppGroup.swift
+├── Shared/                         # compiled into App and Keyboard
+│   ├── SessionIPC.swift            # Darwin notify names + App Group files
+│   └── AppGroup.swift
+└── Tests/                          # XCTest target for App + Shared
 ```
 
-The keyboard links **only** `Shared/`, never `MacParakeetCore` (keeps it far
-under the memory cap).
+Targets: `MacParakeetCoreiOS` (framework), `MacParakeetiOS` (app),
+`MacParakeetKeyboard` (extension), `MacParakeetiOSTests`.
 
-Database lives in the App Group container so the keyboard *could* read recent
-history later; v1 keyboard only uses the session file.
+The keyboard links **only** `Shared/`, never `MacParakeetCoreiOS` (keeps it far
+under the memory cap). Only the host app opens the database, which lives in the
+App Group container.
 
 ### D6. Model download
 
@@ -168,10 +187,12 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 6. **Gate:** ADR-013 accepted by maintainer → flip requirements to `active`.
 
 ### Phase 1 — Core builds for iOS
-1. Apply D4 guards; add `.iOS(.v17)` platform.
-2. iOS `AudioRecorder` path with `AVAudioSession`.
-3. **Gate:** `swift test` green on macOS; `xcodebuild -scheme MacParakeetCore
-   -destination 'generic/platform=iOS Simulator' build` succeeds.
+1. `iOS/project.yml` with the `MacParakeetCoreiOS` target and D4 exclude list;
+   `iOS/Makefile`; gitignore the generated `.xcodeproj`.
+2. `CoreReplacements/`: `RecordingDeviceInfo`, `MobileAudioProcessor`.
+3. Extend the exclude list or add replacements until the target compiles.
+4. **Gate:** `make -C iOS build` (iOS Simulator) succeeds; `swift test` green
+   on macOS; `git diff main -- Sources Tests Package.swift scripts` is empty.
 
 ### Phase 2 — Host app skeleton
 1. Create `iOS/` Xcode project, App Group, URL scheme, background audio mode.

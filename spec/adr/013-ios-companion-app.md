@@ -29,13 +29,13 @@ The first mic tap with no live session opens the app via `macparakeet://session/
 
 The keyboard requires Full Access (App Group access). It never links `MacParakeetCore` and never opens the database.
 
-### 3. One Core target, platform-guarded
+### 3. iOS lives in `iOS/`; Mac sources are not edited
 
-`MacParakeetCore` and `MacParakeetViewModels` gain an iOS platform; macOS-only files are wrapped in `#if os(macOS)` rather than split into a new target. Core stays UI-free (no UIKit or SwiftUI). The iOS app and keyboard live in an Xcode project under `iOS/` that references the local package, because SPM cannot build app extensions. Mac build scripts are unchanged.
+The iOS app is a self-contained `iOS/` directory with an XcodeGen-generated Xcode project (SPM cannot build app extensions). Its framework target compiles `../Sources/MacParakeetCore` in place, excluding macOS-only files, and supplies iOS replacements for the few excluded types that shared code references (`RecordingDeviceInfo`, an `AudioProcessorProtocol` conformer). `Sources/`, `Tests/`, `Package.swift`, and `scripts/` stay untouched, so the Mac app is unchanged and upstream merges stay clean. Moving `iOS/` to its own repo later only means swapping the `../Sources` path for a submodule. The exclude list is in `plans/active/ios-app.md` D4.
 
 ### 4. Minimum iOS 17
 
-`Package.swift` stays at `swift-tools-version: 5.9`, whose newest iOS platform constant is `.v17`. Raising the tools version to reach `.v18` would also move every target into the Swift 6 language mode, which is an unrelated migration. iOS 17 covers every API this ADR needs (Live Activities, `AVAudioApplication` record permission).
+iOS 17 is the lowest version providing every API the app needs (`AVAudioApplication` record permission, Live Activities).
 
 ### 5. No sync
 
@@ -51,7 +51,7 @@ The iOS app keeps its own database, vocabulary, and settings. Sync would require
 
 ### Positive
 
-- Same model, pipeline, and vocabulary on Mac and iPhone; Core gains no UI dependency.
+- Same model and pipeline on Mac and iPhone, compiled from the same source files.
 - No new server infrastructure; the iOS app is as private as the Mac app.
 - No Mac app behavior change.
 
@@ -60,7 +60,8 @@ The iOS app keeps its own database, vocabulary, and settings. Sync would require
 - First dictation after the session idles out requires an app round-trip.
 - Full Access triggers Apple's "can transmit anything you type" warning; onboarding must explain it.
 - The responder-chain app launch is unsupported API and may break in a future iOS release.
-- `#if os(macOS)` guards spread across ~20 Core files.
+- The iOS build can break when upstream changes a shared file to depend on an excluded one; the fix is a replacement in `iOS/`, never an edit to `Sources/`.
+- No LLM features on iOS: the shared LLM routing depends on `Process`.
 - Custom words and snippets must be entered separately on each device.
 
 ### Risks

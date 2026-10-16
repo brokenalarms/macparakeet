@@ -179,8 +179,8 @@ REQ-IOS-001:
   priority: p0
   source: spec/adr/013-ios-companion-app.md
   acceptance:
-    - MacParakeetCore and MacParakeetViewModels build for the iOS 17 simulator and device
-    - macOS build and swift test stay green with no behavior change
+    - iOS/ builds MacParakeetCore from ../Sources/MacParakeetCore for the iOS 17 simulator and device
+    - No file outside iOS/, spec/, and plans/ is modified; swift test stays green
     - Given a downloaded model and mic permission, tapping record in the host app then stop yields text processed by TextProcessingPipeline in the configured processing mode
     - Audio is captured and transcribed on device; no network request is made during dictation
 
