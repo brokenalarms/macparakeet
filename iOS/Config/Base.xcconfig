@@ -1,0 +1,10 @@
+// Override any of these in Config/Local.xcconfig (gitignored) to sign for a device
+// under your own team, e.g. BUNDLE_ID_PREFIX = com.example.parakeet and a matching
+// APP_GROUP_ID registered to that team.
+BUNDLE_ID_PREFIX = com.macparakeet.ios
+APP_GROUP_ID = group.com.macparakeet
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

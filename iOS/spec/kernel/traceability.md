@@ -1,11 +1,11 @@
 # iOS Traceability Matrix
 
-> Status: **ACTIVE** — planned paths; update when implemented.
+> Status: **ACTIVE** — implemented through Phase 3 (code + simulator tests); device gates pending.
 
 | Requirement | Contract / State Machine | Source Files | Test Files |
 |------------|-------------------------|-------------|------------|
-| REQ-IOS-001 | — | `iOS/project.yml`, `iOS/CoreReplacements/MobileAudioProcessor.swift`, `iOS/App/` | `swift test` (macOS), `make -C iOS build` |
-| REQ-IOS-002 | `contracts/keyboard_session_ipc.yaml`, `state_machines/dictation_session.yaml` | `iOS/App/DictationSessionController.swift`, `iOS/Shared/SessionIPC.swift` | `iOS/Tests/DictationSessionControllerTests.swift`, `iOS/Tests/SessionIPCTests.swift` |
-| REQ-IOS-003 | `contracts/keyboard_session_ipc.yaml` | `iOS/Keyboard/KeyboardViewController.swift`, `iOS/Keyboard/AppLauncher.swift`, `iOS/Shared/SessionIPC.swift` | `iOS/Tests/KeyboardViewStateTests.swift` |
-| REQ-IOS-004 | — | `iOS/App/Views/Onboarding/`, `iOS/App/OnboardingViewModel.swift` | `iOS/Tests/OnboardingViewModelTests.swift` |
-| REQ-IOS-005 | — | `iOS/App/Views/`, `Sources/MacParakeetViewModels/CustomWordsViewModel.swift`, `TextSnippetsViewModel.swift` (compiled in, unedited) | existing Mac ViewModel tests, `iOS/Tests/` |
+| REQ-IOS-001 | — | `iOS/project.yml`, `iOS/CoreReplacements/RecordingDeviceInfo.swift`, `iOS/CoreReplacements/MobileAudioProcessor.swift`, `iOS/CoreReplacements/Telemetry.swift` (no-op), `iOS/App/AppEnvironment.swift`, `iOS/App/AppSettings.swift`, `iOS/App/Views/HomeView.swift`, `iOS/App/Views/VocabularyView.swift` | `swift test` (macOS), `make -C iOS build`, `iOS/Tests/TextPipelineParityTests.swift` |
+| REQ-IOS-002 | `contracts/keyboard_session_ipc.yaml`, `state_machines/dictation_session.yaml` | `iOS/App/DictationSessionController.swift`, `iOS/App/DictationSessionStateMachine.swift`, `iOS/App/SessionActivityPresenter.swift`, `iOS/Widgets/SessionLiveActivity.swift`, `iOS/Shared/SessionIPC.swift`, `iOS/Shared/SessionActivityAttributes.swift` | `iOS/Tests/DictationSessionControllerTests.swift`, `iOS/Tests/SessionIPCTests.swift` |
+| REQ-IOS-003 | `contracts/keyboard_session_ipc.yaml` | `iOS/Keyboard/KeyboardViewController.swift`, `iOS/Keyboard/KeyboardModel.swift`, `iOS/Keyboard/KeyboardView.swift`, `iOS/Keyboard/AppLauncher.swift`, `iOS/Shared/KeyboardViewState.swift`, `iOS/Shared/SessionIPC.swift` | `iOS/Tests/KeyboardViewStateTests.swift`, `iOS/Tests/SessionIPCTests.swift` |
+| REQ-IOS-004 | — | `iOS/App/OnboardingViewModel.swift`, `iOS/App/Views/OnboardingView.swift` | `iOS/Tests/OnboardingViewModelTests.swift` |
+| REQ-IOS-005 | — | `iOS/App/HistoryViewModel.swift`, `iOS/App/Views/HistoryView.swift`, `iOS/App/Views/CustomWordsView.swift`, `iOS/App/Views/TextSnippetsView.swift`, `iOS/App/Views/SettingsView.swift`, `Sources/MacParakeetViewModels/CustomWordsViewModel.swift`, `TextSnippetsViewModel.swift` (compiled in, unedited) | existing Mac ViewModel tests, `iOS/Tests/HistoryViewModelTests.swift` |

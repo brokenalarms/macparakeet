@@ -1,6 +1,6 @@
 # iOS App (MacParakeet for iPhone) Implementation Plan
 
-> Status: **ACTIVE** - 2026-10-16 (Phase 0 complete; Phase 1 next)
+> Status: **ACTIVE** - 2026-10-16 (Phases 1–3 code complete and simulator-verified; device gates and Phase 4 pending)
 
 ## Overview
 
@@ -39,8 +39,9 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 - Mac app behavior unchanged; `swift test` stays green throughout
 - No changes outside `iOS/`. The Mac app, its spec, and its docs do not know
   the iOS app exists; iOS only consumes existing Mac code. Upstream merges stay clean.
-- Audio and text never leave the device; the iOS app's only network calls are
-  model download and telemetry (opt-out, as on Mac)
+- Audio, text, and usage data never leave the device. The iOS app's only network
+  access is the model download. No telemetry, crash reporting, feedback, or licensing
+  code is compiled in (iOS ADR-001 Decision 6)
 - `iOS/` stays self-contained, so it can move to its own repo by replacing the
   `../Sources` path with a submodule
 
@@ -106,8 +107,8 @@ Excluded from the iOS build (verified by grepping cross-references):
 | `Audio/AudioRecorder.swift`, `AudioDeviceManager.swift` | CoreAudio device APIs | `RecordingDeviceInfo` (used by `AudioProcessorProtocol`, `AudioProcessor`, `TelemetryEvent`) |
 | `Audio/AudioProcessor.swift`, `AudioFileConverter.swift` | FFmpeg file conversion | `AudioProcessorProtocol` conformer for `DictationService` |
 | `Services/AccessibilityService`, `ClipboardService`, `PermissionService`, `LaunchAtLoginService` | AppKit / AX / SMAppService | none; iOS has its own mic permission helper |
-| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService` | `Process` | none (Mac ADR-011 LLM text features out of scope; Parakeet STT unaffected) |
-| `Services/YouTubeDownloader`, `VideoStreamService`, `ThumbnailCacheService`, `BinaryBootstrap`, `ExportService`, `AutoSaveService`, `TranscriptionService`, `DiarizationService` | file/YouTube features | none |
+| `Services/LocalCLIExecutor`, `LocalCLILLMClient`, `RoutingLLMClient`, `LLMExecutionContext`, `LLMService`, `LLMClient` | `Process` | none (Mac ADR-011 LLM text features out of scope; Parakeet STT unaffected) |
+| `Services/YouTubeDownloader`, `VideoStreamService`, `ThumbnailCacheService`, `BinaryBootstrap`, `ExportService`, `AutoSaveService`, `TranscriptionService`, `DiarizationService`, `SpeakerMerger` | file/YouTube features | none |
 | `STT/FnKeyStateMachine`, `HotkeyTrigger`, `KeyCodeNames`, `DictationFlow/DictationFlowStateMachine` | hotkey flow | none; iOS session uses `dictation_session` state machine |
 
 iOS replacements live in `iOS/CoreReplacements/` and compile into the same
@@ -119,9 +120,13 @@ iOS replacements live in `iOS/CoreReplacements/` and compile into the same
   interruption and route-change handling
 
 `DictationService`, `STTClient`, `TextProcessingPipeline`, `TextRefinementService`,
-repositories, models, `DatabaseManager`, and telemetry compile unchanged.
-`CrashReporter` (MachO) and `SystemInfo` (`sysctlbyname`) are expected to
-compile on iOS; Phase 1 verifies this and excludes them if not.
+repositories, models, and `DatabaseManager` compile unchanged.
+
+Network-capable files are excluded even though they compile: `TelemetryService`,
+`CrashReporter`, `FeedbackService`, `DiscoverService`, `DiscoverThoughtsService`,
+`LemonSqueezyLicenseAPI`, and `EntitlementsService`. `CoreReplacements/Telemetry.swift`
+is a no-op `Telemetry` facade, so shared calls to `Telemetry.send` compile and do
+nothing.
 
 From `Sources/MacParakeetViewModels`, only `CustomWordsViewModel` and
 `TextSnippetsViewModel` are compiled in. Other iOS screens get iOS-specific
@@ -160,11 +165,24 @@ iOS/
 ```
 
 Targets: `MacParakeetCoreiOS` (framework), `MacParakeetiOS` (app),
-`MacParakeetKeyboard` (extension), `MacParakeetiOSTests`.
+`MacParakeetKeyboard` (extension), `MacParakeetWidgets` (Live Activity widget
+extension; ActivityKit needs one to render), `MacParakeetiOSTests`.
 
 The keyboard links **only** `Shared/`, never `MacParakeetCoreiOS` (keeps it far
-under the memory cap). Only the host app opens the database, which lives in the
-App Group container.
+under the memory cap). Only the host app opens the database, and it lives in the
+app's **private** container (`AppPaths.databasePath`), not the App Group: the
+keyboard never reads it, and keeping it out of the shared container removes the
+`0xdead10cc` risk without needing GRDB suspension handling (which the shared
+`DatabaseManager` does not expose).
+
+Bundle IDs and the App Group come from `Config/Base.xcconfig`
+(`BUNDLE_ID_PREFIX`, `APP_GROUP_ID`), overridable in a gitignored
+`Config/Local.xcconfig` to sign for a device under another team. The App Group
+reaches Swift through the `MacParakeetAppGroup` Info.plist key.
+
+The test target is unhosted: it compiles `Shared/` and the testable `App/`
+files directly and links `MacParakeetCoreiOS`, so tests never launch the app
+(no DB).
 
 ### D6. Model download
 
@@ -190,34 +208,43 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 ### Phase 1 — Core builds for iOS
 1. `iOS/project.yml` with the `MacParakeetCoreiOS` target and D4 exclude list;
    `iOS/Makefile`; gitignore the generated `.xcodeproj`.
-2. `CoreReplacements/`: `RecordingDeviceInfo`, `MobileAudioProcessor`.
+2. `CoreReplacements/`: `RecordingDeviceInfo`, `MobileAudioProcessor`, no-op `Telemetry`.
 3. Extend the exclude list or add replacements until the target compiles.
 4. **Gate:** `make -C iOS build` (iOS Simulator) succeeds; `swift test` green
    on macOS; `git diff --stat main -- . ':!iOS'` is empty.
+   - ✅ Core, app, keyboard, and widget targets build for the iOS Simulator
+     (2026-10-16; local Xcode 26.6, see note below); Mac diff gate empty.
+   - ⚠️ `swift test` not re-run: on Xcode 26.6 FluidAudio 0.12.5 itself fails
+     to compile (`sending 'asrManager' risks causing data races` in
+     `StreamingAsrManager.swift`) for **macOS as well as iOS**, so this is a
+     toolchain/upstream issue independent of iOS. Verification used a local
+     FluidAudio copy in Swift 5 language mode; `project.yml` stays pinned to the
+     Mac's 0.12.5. Resolve upstream (FluidAudio 0.12.6+ or older Xcode) before
+     shipping.
 
 ### Phase 2 — Host app skeleton
-1. Create `iOS/` Xcode project, App Group, URL scheme, background audio mode.
-2. Onboarding: model download (FluidAudio), mic permission, keyboard setup guide.
-3. Home screen with in-app record button wired to `DictationService`
+1. ✅ Create `iOS/` Xcode project, App Group, URL scheme, background audio mode.
+2. ✅ Onboarding: model download (FluidAudio), mic permission, keyboard setup guide.
+3. ✅ Home screen with in-app record button wired to `DictationService`
    (proves STT on device before keyboard work).
-4. History, Vocabulary (processing mode, custom words, snippets), Settings —
+4. ✅ History, Vocabulary (processing mode, custom words, snippets), Settings —
    reuse ViewModels from `MacParakeetViewModels` where they compile.
-5. **Gate:** simulator build runs; on device, in-app dictation returns text with
+5. **Gate:** ✅ simulator build launches (onboarding renders, URL scheme
+   registered); ⏳ on device, in-app dictation returns text with
    pipeline applied; record ANE latency for a 10 s clip.
 
 ### Phase 3 — Keyboard + session
-1. `Shared/SessionIPC.swift`: notify names, session file read/write, tests.
-2. `DictationSessionController`: start/hold audio session, heartbeat,
+1. ✅ `Shared/SessionIPC.swift`: notify names, session file read/write, tests.
+2. ✅ `DictationSessionController`: start/hold audio session, heartbeat,
    idle timeout, Live Activity, observe start/stop notifications, write results.
-3. Keyboard extension: UI, liveness check, `AppLauncher`, insert + de-dup,
+3. ✅ Keyboard extension: UI, liveness check, `AppLauncher`, insert + de-dup,
    recording/processing states, Full Access check.
-4. **Gate (device):** in Notes/Messages/Safari: first tap opens app → Back →
+4. ⏳ **Gate (device):** in Notes/Messages/Safari: first tap opens app → Back →
    dictation inserts text; second dictation needs no app switch; app killed →
    next tap reopens app; phone call interruption recovers.
 
 ### Phase 4 — Ship
-1. App Store metadata, privacy nutrition label (mic; no data collected except
-   opt-out telemetry), keyboard Full Access justification for review.
+1. App Store metadata, privacy nutrition label (mic; Data Not Collected), keyboard Full Access justification for review.
 2. TestFlight, then App Store.
 3. Update `iOS/CLAUDE.md`, `iOS/spec/kernel/traceability.md`, requirement
    statuses; archive this plan to `iOS/plans/completed/`.
@@ -231,8 +258,22 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 | App Review rejects background audio for "holding" mic | Live Activity indicator + user-visible session timeout; WisprFlow precedent |
 | Model size on phone storage | Space check + clear messaging; consider smaller variant later |
 | Agent can't build iOS on Linux | Run Claude Code locally on a Mac with Xcode for Phases 1–3 |
-| GRDB DB in App Group container killed on suspend (`0xdead10cc`) | Enable GRDB `observesSuspensionNotifications`; only the host app opens the DB |
+| GRDB DB in App Group container killed on suspend (`0xdead10cc`) | DB lives in the app's private container; only IPC JSON (atomic writes, no locks) is shared |
 
 ## Files Changed
 
-_(fill in when done)_
+Phases 1–3 (2026-10-16):
+
+- `project.yml`, `Makefile`, `Config/Base.xcconfig`, `.gitignore`
+- `CoreReplacements/`: `RecordingDeviceInfo.swift`, `MobileAudioProcessor.swift`
+- `Shared/`: `AppGroup.swift`, `SessionIPC.swift`, `KeyboardViewState.swift`, `SessionActivityAttributes.swift`
+- `App/`: `MacParakeetiOSApp.swift`, `AppEnvironment.swift`, `AppSettings.swift`,
+  `DictationSessionStateMachine.swift`, `DictationSessionController.swift`,
+  `SessionActivityPresenter.swift`, `OnboardingViewModel.swift`, `HistoryViewModel.swift`,
+  `Views/` (Root, Home, Onboarding, History, Vocabulary, CustomWords, TextSnippets, Settings)
+- `Keyboard/`: `KeyboardViewController.swift`, `KeyboardModel.swift`, `KeyboardView.swift`, `AppLauncher.swift`
+- `Widgets/SessionLiveActivity.swift`
+- `Tests/`: 55 tests (`DictationSessionControllerTests`, `SessionIPCTests`,
+  `KeyboardViewStateTests`, `OnboardingViewModelTests`, `HistoryViewModelTests`,
+  `TextPipelineParityTests`), all passing on the iOS 17 simulator
+- Kernel: `app_session_requested` event added to `dictation_session.yaml` for in-app dictation
