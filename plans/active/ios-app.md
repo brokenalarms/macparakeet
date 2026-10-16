@@ -1,6 +1,6 @@
 # iOS App (MacParakeet for iPhone) Implementation Plan
 
-> Status: **PROPOSAL** - 2026-10-16
+> Status: **PROPOSAL** - 2026-10-16 (Phase 0 spec complete; awaiting ADR-013 acceptance)
 
 ## Overview
 
@@ -111,7 +111,9 @@ Keep one `MacParakeetCore` target, guard macOS-only files with `#if os(macOS)`
 `STTClientProtocol`, repos) and needs no change. ViewModels: guard AppKit usage
 in `DictationHistoryViewModel` and `FeedbackViewModel`.
 
-`Package.swift`: add `.iOS(.v18)` to `platforms`. The Mac-only executable
+`Package.swift`: add `.iOS(.v17)` to `platforms`. `swift-tools-version: 5.9`
+has no `.v18` constant, and bumping the tools version would switch all targets
+to the Swift 6 language mode — out of scope (ADR-013 §4). The Mac-only executable
 targets and Sparkle remain macOS (use `.when(platforms: [.macOS])` on the
 Sparkle dependency).
 
@@ -155,36 +157,41 @@ before download. Exclude model dir from iCloud backup (`isExcludedFromBackup`).
 - **Synced record types:** `CustomWord`, `TextSnippet`, `Dictation` (text +
   metadata only; no audio), settings (processing mode, etc.).
 - **IDs:** existing UUID primary keys map directly to `CKRecord.ID`.
-- **Change tracking:** each repo gains `updatedAt` + soft-delete tombstone
-  (`deletedAt`) via a GRDB migration; a `SyncService` in Core observes
-  writes (repo hooks) and enqueues pending changes.
+- **Change tracking:** synced tables already have `updatedAt`; each gains a
+  soft-delete tombstone (`deletedAt`) via one GRDB migration per table. Unique
+  indexes on `custom_words.word` / `text_snippets.trigger` become partial
+  (`WHERE deletedAt IS NULL`). A `SyncService` in Core observes repo writes and
+  enqueues pending changes.
+- **Duplicate natural keys:** the same word/trigger created on both devices has
+  two UUIDs; inbound merge keeps the earlier `createdAt` and tombstones the other.
 - **Conflicts:** last-writer-wins on `updatedAt`, per record.
 - **Privacy:** transcript text fields use `CKRecord.encryptedValues`
   (end-to-end encrypted). Toggle in Settings on both platforms, default off.
 - **Mac distribution:** Developer ID apps can use CloudKit but need an
   iCloud entitlement + embedded provisioning profile → update
   `scripts/dist/build_app_bundle.sh` / `sign_notarize.sh`.
-- **Spec:** requires an ADR-002 amendment (text-only opt-in sync) before
-  implementation, plus `spec/01-data-model.md` updates.
+- **Spec:** `spec/kernel/contracts/icloud_sync.yaml` (field allowlist, merges,
+  never-synced data), ADR-002 proposed amendment, `spec/01-data-model.md`
+  § Sync Tombstones.
 
 ## Implementation Steps
 
 Each phase ends with a verifiable gate. Phases 1–2 can be built and tested on
 a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 
-### Phase 0 — Spec (before code)
-1. Add requirements to `spec/kernel/requirements.yaml` (new area `IOS`):
-   - REQ-IOS-001 iOS app dictation via keyboard launcher
-   - REQ-IOS-002 background dictation session with heartbeat + timeout
-   - REQ-IOS-003 keyboard inserts result via `textDocumentProxy`
-   - REQ-IOS-004 onboarding: model download, mic, keyboard + Full Access
-   - REQ-IOS-005 history / vocabulary / snippets screens
-   - REQ-SYNC-001 opt-in CloudKit sync of words, snippets, settings, history text
-2. Write ADR-013 (iOS companion app) and amend ADR-002 (opt-in text sync).
-3. Update `spec/README.md` roadmap.
+### Phase 0 — Spec (before code) ✅
+1. ✅ `spec/kernel/requirements.yaml`: `REQ-IOS-001`…`005`, `REQ-SYNC-001`
+   (status `proposed`, with acceptance criteria)
+2. ✅ `spec/kernel/contracts/ios_keyboard_session_ipc.yaml` (session/command
+   files, notification names, keyboard view-state derivation, error codes)
+3. ✅ `spec/kernel/state_machines/ios_dictation_session.yaml`
+4. ✅ `spec/kernel/contracts/icloud_sync.yaml`
+5. ✅ ADR-013 (proposed) + ADR-002 proposed amendment
+6. ✅ `spec/README.md` roadmap, `spec/01-data-model.md`, `traceability.md`
+7. **Gate:** ADR-013 accepted by maintainer → flip requirements to `active`.
 
 ### Phase 1 — Core builds for iOS
-1. Apply D4 guards; add `.iOS(.v18)` platform.
+1. Apply D4 guards; add `.iOS(.v17)` platform.
 2. iOS `AudioRecorder` path with `AVAudioSession`.
 3. **Gate:** `swift test` green on macOS; `xcodebuild -scheme MacParakeetCore
    -destination 'generic/platform=iOS Simulator' build` succeeds.
@@ -232,6 +239,8 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 | Model size on phone storage | Space check + clear messaging; consider smaller variant later |
 | CloudKit with Developer ID Mac builds | Prototype entitlement/profile early in Phase 4 |
 | Agent can't build iOS on Linux | Run Claude Code locally on a Mac with Xcode for Phases 1–3 |
+| GRDB DB in App Group container killed on suspend (`0xdead10cc`) | Enable GRDB `observesSuspensionNotifications`; only the host app opens the DB |
+| Device offline > 30 days resurrects purged-tombstone records | Accept for v1; revisit if reported |
 
 ## Files Changed
 

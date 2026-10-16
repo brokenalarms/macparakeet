@@ -15,6 +15,8 @@
 #   LLM   - LLM provider integration
 #   PLAY  - Video/audio playback
 #   LIB   - Transcription library
+#   IOS   - iOS companion app (keyboard-launched dictation)
+#   SYNC  - Opt-in iCloud sync between Mac and iOS
 
 # --- v0.1 Core MVP ---
 
@@ -167,3 +169,85 @@ REQ-UI-005:
   description: Two side-by-side input cards on home page
   version: v0.6
   status: implemented
+
+# --- iOS Companion (ADR-013) ---
+# Proposed entries carry source + acceptance per spec/10-ai-coding-method.md.
+
+REQ-IOS-001:
+  description: iOS host app builds from shared MacParakeetCore and dictates in-app with the clean pipeline
+  version: ios-v1
+  status: proposed
+  priority: p0
+  source: spec/adr/013-ios-companion-app.md
+  acceptance:
+    - MacParakeetCore and MacParakeetViewModels build for the iOS 17 simulator and device
+    - macOS build and swift test stay green with no behavior change
+    - Given a downloaded model and mic permission, tapping record in the host app then stop yields text processed by TextProcessingPipeline in the configured processing mode
+    - Audio is captured and transcribed on device; no network request is made during dictation
+
+REQ-IOS-002:
+  description: Host app holds a background dictation session with heartbeat and idle timeout
+  version: ios-v1
+  status: proposed
+  priority: p0
+  source: spec/adr/013-ios-companion-app.md
+  contract: spec/kernel/contracts/ios_keyboard_session_ipc.yaml
+  state_machine: spec/kernel/state_machines/ios_dictation_session.yaml
+  acceptance:
+    - Opening the app via macparakeet://session/start activates the audio session and enters ready
+    - While ready, recording, or processing, the session file heartbeat is refreshed at most every 2 s
+    - After the idle timeout (default 5 min, configurable) in ready, the audio session is deactivated, the session file state becomes ended, and the Live Activity ends
+    - A Live Activity is visible for the whole time the audio session is held
+    - An audio interruption during recording transcribes the audio captured so far; the session returns to ready when the interruption ends, or ended if the audio session cannot be reactivated
+
+REQ-IOS-003:
+  description: Keyboard extension starts/stops dictation and inserts the result via textDocumentProxy
+  version: ios-v1
+  status: proposed
+  priority: p0
+  source: spec/adr/013-ios-companion-app.md
+  contract: spec/kernel/contracts/ios_keyboard_session_ipc.yaml
+  acceptance:
+    - With no live session, tapping mic opens the host app; after the user returns, the next mic tap starts recording without another app switch
+    - With a live session, mic tap starts recording and the second tap stops it
+    - The keyboard inserts a result only if its requestID matches a request this keyboard instance issued, and inserts each requestID at most once
+    - An empty transcript inserts nothing and shows no error
+    - Without Full Access the keyboard shows only an enable-Full-Access prompt plus globe key
+    - The keyboard target does not link MacParakeetCore
+
+REQ-IOS-004:
+  description: First-run onboarding covers model download, microphone, keyboard install, and Full Access
+  version: ios-v1
+  status: proposed
+  priority: p1
+  source: spec/adr/013-ios-companion-app.md
+  acceptance:
+    - Model download shows progress, resumes after interruption, and refuses to start when free space is below model size plus margin
+    - Model directory is excluded from iCloud backup
+    - Full Access is explained before the user reaches the system warning
+    - Onboarding completion is not required to reopen the app; incomplete steps are resumable
+
+REQ-IOS-005:
+  description: iOS history, vocabulary (processing mode, custom words, snippets), and settings screens
+  version: ios-v1
+  status: proposed
+  priority: p1
+  source: spec/adr/013-ios-companion-app.md
+  acceptance:
+    - History lists non-hidden dictations newest first with substring search, copy, and delete
+    - Custom words and snippets support add, edit, enable/disable, delete with the same validation as macOS
+    - Private dictation mode behaves as REQ-DICT-005
+
+REQ-SYNC-001:
+  description: Opt-in iCloud sync of custom words, snippets, allowlisted settings, and dictation text
+  version: ios-v1
+  status: proposed
+  priority: p2
+  source: spec/adr/013-ios-companion-app.md
+  contract: spec/kernel/contracts/icloud_sync.yaml
+  acceptance:
+    - Sync is off by default on both platforms; while off, no CloudKit API is called
+    - A custom word added on one device appears on the other; a delete propagates as a tombstone
+    - The same custom word or snippet trigger created independently on both devices converges to one row
+    - Hidden dictations, audio files, and audioPath are never uploaded
+    - Turning sync off keeps all local data
