@@ -24,9 +24,11 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     exactVersion: 7.10.0
+  # Newer than the Mac pin: tdtCtc110m (bundled English model) needs it. The Mac
+  # STTClient doesn't compile against it, so iOS uses CoreReplacements/MobileSTTClient.
   FluidAudio:
     url: https://github.com/FluidInference/FluidAudio
-    exactVersion: 0.12.5
+    exactVersion: 0.17.7
 
 targets:
   MacParakeetCoreiOS:
@@ -58,6 +60,7 @@ targets:
           - Services/TranscriptionService.swift
           - Services/DiarizationService.swift
           - Services/SpeakerMerger.swift
+          - STT/STTClient.swift
           - STT/FnKeyStateMachine.swift
           - STT/HotkeyTrigger.swift
           - STT/KeyCodeNames.swift
@@ -91,6 +94,10 @@ targets:
       - path: Shared
       - path: ../Sources/MacParakeetViewModels/CustomWordsViewModel.swift
       - path: ../Sources/MacParakeetViewModels/TextSnippetsViewModel.swift
+      # English speech model, fetched by `make models` (gitignored)
+      - path: Models/parakeet-tdt-ctc-110m-coreml
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: MacParakeetCoreiOS
       - target: MacParakeetKeyboard
@@ -184,6 +191,7 @@ targets:
       - path: App/DictationSessionStateMachine.swift
       - path: App/DictationSessionController.swift
       - path: App/OnboardingViewModel.swift
+      - path: App/SpeechModelSettingsViewModel.swift
       - path: App/HistoryViewModel.swift
     dependencies:
       - target: MacParakeetCoreiOS

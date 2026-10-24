@@ -1,12 +1,16 @@
+import MacParakeetCore
 import SwiftUI
 
 struct SettingsView: View {
+    let speechModels: SpeechModelSettingsViewModel
     @AppStorage(AppSettings.saveDictationHistoryKey) private var saveDictationHistory = true
     @AppStorage(AppSettings.idleTimeoutMinutesKey) private var idleTimeoutMinutes = AppSettings.defaultIdleTimeoutMinutes
 
     var body: some View {
         NavigationStack {
             Form {
+                SpeechModelSection(viewModel: speechModels)
+
                 Section {
                     Picker("End mic session after", selection: $idleTimeoutMinutes) {
                         ForEach(AppSettings.idleTimeoutChoices, id: \.self) { minutes in
@@ -26,7 +30,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Text("Audio, text, and usage never leave this iPhone. The only network access is the one-time speech model download.")
+                    Text("Audio, text, and usage never leave this iPhone. The only network access is the optional multilingual model download.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } header: {
@@ -35,5 +39,84 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+}
+
+private struct SpeechModelSection: View {
+    let viewModel: SpeechModelSettingsViewModel
+
+    var body: some View {
+        Section {
+            ModelRow(
+                title: "English",
+                detail: "Built in",
+                isSelected: viewModel.selected == .english
+            ) { viewModel.select(.english) }
+
+            switch viewModel.multilingual {
+            case .downloaded:
+                ModelRow(
+                    title: "Multilingual",
+                    detail: "25 European languages",
+                    isSelected: viewModel.selected == .multilingual
+                ) { viewModel.select(.multilingual) }
+                Button("Delete multilingual model", role: .destructive) {
+                    Task { await viewModel.delete() }
+                }
+            case .notDownloaded:
+                downloadButton
+            case .downloading(let progress):
+                if let fraction = progress.fraction {
+                    ProgressView(value: fraction) { Text(progress.message).font(.footnote) }
+                } else {
+                    ProgressView { Text(progress.message).font(.footnote) }
+                }
+            case .insufficientSpace(let required, let available):
+                Text("Not enough free space: needs \(Self.bytes(required)), \(Self.bytes(available)) available.")
+                    .foregroundStyle(.red)
+                downloadButton
+            case .failed(let message):
+                Text(message).foregroundStyle(.red)
+                downloadButton
+            }
+        } header: {
+            Text("Speech model")
+        } footer: {
+            Text("English works out of the box. The multilingual model adds 24 more European languages and is downloaded once, about 480 MB; Wi-Fi recommended.")
+        }
+    }
+
+    private var downloadButton: some View {
+        Button("Download multilingual model") {
+            Task { await viewModel.download() }
+        }
+    }
+
+    private static func bytes(_ count: Int64) -> String {
+        count.formatted(.byteCount(style: .file))
+    }
+}
+
+private struct ModelRow: View {
+    let title: String
+    let detail: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(title).foregroundStyle(.primary)
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

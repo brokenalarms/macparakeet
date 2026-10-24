@@ -14,11 +14,11 @@ REQ-IOS-001:
   acceptance:
     - iOS/ builds MacParakeetCore from ../Sources/MacParakeetCore for the iOS 17 simulator and device
     - No file outside iOS/ is modified; swift test stays green
-    - Given a downloaded model and mic permission, tapping record in the host app then stop yields text processed by TextRefinementService in the configured processing mode
+    - Given the bundled model and mic permission, tapping record in the host app then stop yields text processed by TextRefinementService in the configured processing mode
     - Clean mode (filler removal, custom words, snippets) produces the same output as macOS for the same raw transcript, custom words, and snippets, because both compile the same TextProcessingPipeline source
     - Processing mode defaults to raw (as on macOS) and is selectable as raw or clean in Vocabulary
     - Audio is captured and transcribed on device; no network request is made during dictation
-    - The iOS build contains no telemetry, crash-report, feedback, or licensing network code; the only network access is the speech model download
+    - The iOS build contains no telemetry, crash-report, feedback, or licensing network code; the only network access is the optional multilingual model download
 
 REQ-IOS-002:
   description: Host app holds a background dictation session with heartbeat and idle timeout
@@ -52,14 +52,13 @@ REQ-IOS-003:
     - The keyboard target does not link MacParakeetCore
 
 REQ-IOS-004:
-  description: First-run onboarding covers model download, microphone, keyboard install, and Full Access
+  description: First-run onboarding covers the bundled model check, microphone, keyboard install, and Full Access
   version: ios-v1
   status: active
   priority: p1
   source: iOS/spec/adr/001-ios-companion-app.md
   acceptance:
-    - Model download shows progress, resumes after interruption, and refuses to start when free space is below model size plus margin
-    - Model directory is excluded from iCloud backup
+    - The English model ships in the app bundle; onboarding needs no download and marks the model step done when the bundled model is present
     - Full Access is explained before the user reaches the system warning
     - Onboarding completion is not required to reopen the app; incomplete steps are resumable
 
@@ -73,3 +72,17 @@ REQ-IOS-005:
     - History lists non-hidden dictations newest first with substring search, copy, and delete
     - Custom words and snippets support add, edit, enable/disable, delete with the same validation as macOS
     - Private dictation mode behaves as the Mac's REQ-DICT-005
+
+REQ-IOS-006:
+  description: Speech model choice — bundled English model, optional multilingual download
+  version: ios-v1
+  status: active
+  priority: p1
+  source: iOS/spec/adr/001-ios-companion-app.md
+  acceptance:
+    - English (Parakeet TDT-CTC 110M) is bundled and selected by default; dictation works offline on first launch
+    - Settings offers a download of the multilingual model (Parakeet TDT 0.6B v3) with progress, retry after failure, and refusal when free space is below model size plus margin
+    - The multilingual model directory is excluded from iCloud backup
+    - A finished download selects the multilingual model; only downloaded models can be selected
+    - Deleting the multilingual model frees its storage and returns to English
+    - If the stored choice is multilingual but its files are missing, dictation uses English

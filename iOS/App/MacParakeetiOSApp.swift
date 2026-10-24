@@ -37,8 +37,8 @@ final class AppRoot {
         do {
             let environment = try AppEnvironment()
             environment.session.startObserving()
-            if STTClient.isModelCached() {
-                Task { await environment.sttClient.backgroundWarmUp() }
+            if environment.sttClient.isActiveModelAvailable {
+                Task { try? await environment.sttClient.warmUp(onProgress: nil) }
             }
             state = .ready(environment)
         } catch {

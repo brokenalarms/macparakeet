@@ -4,9 +4,13 @@ BUILD_DESTINATION ?= generic/platform=iOS Simulator
 TEST_DESTINATION ?= platform=iOS Simulator,name=iPhone 15
 DERIVED := build/DerivedData
 
-.PHONY: project build test clean
+.PHONY: models project build test clean distclean
 
-project:
+# English speech model bundled into the app (~400 MB, gitignored, fetched once)
+models:
+	scripts/fetch-bundled-model.sh
+
+project: models
 	xcodegen generate --spec project.yml
 
 build: project
@@ -19,3 +23,7 @@ test: project
 
 clean:
 	rm -rf $(PROJECT) build
+
+# Also removes the fetched speech model
+distclean: clean
+	rm -rf Models

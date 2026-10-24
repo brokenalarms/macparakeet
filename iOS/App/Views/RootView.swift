@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     let environment: AppEnvironment
     @State private var onboarding: OnboardingViewModel
+    @State private var speechModels: SpeechModelSettingsViewModel
     @State private var showsOnboarding: Bool
 
     init(environment: AppEnvironment) {
@@ -12,6 +13,7 @@ struct RootView: View {
             mic: LiveMicrophonePermission()
         )
         _onboarding = State(initialValue: onboarding)
+        _speechModels = State(initialValue: SpeechModelSettingsViewModel(models: environment.sttClient))
         _showsOnboarding = State(initialValue: !onboarding.isFinished)
     }
 
@@ -23,7 +25,7 @@ struct RootView: View {
                 .tabItem { Label("History", systemImage: "clock") }
             VocabularyView(environment: environment)
                 .tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
-            SettingsView()
+            SettingsView(speechModels: speechModels)
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
         .fullScreenCover(isPresented: $showsOnboarding) {
