@@ -10,7 +10,7 @@ final class AppEnvironment {
     let dictationRepo: DictationRepository
     let customWordRepo: CustomWordRepository
     let snippetRepo: TextSnippetRepository
-    let sttClient: STTClient
+    let sttClient: MobileSTTClient
     let audioProcessor: MobileAudioProcessor
     let dictationService: DictationService
     let session: DictationSessionController
@@ -21,7 +21,11 @@ final class AppEnvironment {
         dictationRepo = DictationRepository(dbQueue: database.dbQueue)
         customWordRepo = CustomWordRepository(dbQueue: database.dbQueue)
         snippetRepo = TextSnippetRepository(dbQueue: database.dbQueue)
-        sttClient = STTClient()
+        let sttClient = MobileSTTClient(
+            bundledModelDirectory: Bundle.main.url(forResource: MobileSTTClient.bundledModelFolder, withExtension: nil),
+            selectedModel: { AppSettings.speechModel() }
+        )
+        self.sttClient = sttClient
         audioProcessor = MobileAudioProcessor()
 
         dictationService = DictationService(
@@ -41,7 +45,7 @@ final class AppEnvironment {
             dictation: dictationService,
             store: SessionFileStore.appGroup,
             activity: SessionActivityPresenter(),
-            isModelReady: { STTClient.isModelCached() },
+            isModelReady: { sttClient.isActiveModelAvailable },
             idleTimeout: { .seconds(AppSettings.idleTimeoutMinutes() * 60) }
         )
     }

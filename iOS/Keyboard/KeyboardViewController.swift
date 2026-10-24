@@ -5,6 +5,7 @@ final class KeyboardViewController: UIInputViewController {
     private let model = KeyboardModel()
     private let launcher: AppLaunching = ResponderChainAppLauncher()
     private var hostingController: UIHostingController<KeyboardView>?
+    private var installedWithSwitchKey: Bool?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -32,10 +33,15 @@ final class KeyboardViewController: UIInputViewController {
         installKeyboardView()
     }
 
-    /// Rebuilt when `needsInputModeSwitchKey` changes, which UIKit only settles during layout.
+    /// Rebuilt only when `needsInputModeSwitchKey` changes, which UIKit only settles during
+    /// layout. Assigning `rootView` invalidates layout, so doing it on every pass can keep
+    /// the keyboard in a layout loop that starves touch handling.
     private func installKeyboardView() {
+        let needsSwitchKey = needsInputModeSwitchKey
+        guard needsSwitchKey != installedWithSwitchKey else { return }
+        installedWithSwitchKey = needsSwitchKey
         let actions = KeyboardActions(
-            nextKeyboard: needsInputModeSwitchKey ? { [weak self] in self?.advanceToNextInputMode() } : nil,
+            nextKeyboard: needsSwitchKey ? { [weak self] in self?.advanceToNextInputMode() } : nil,
             space: { [weak self] in self?.textDocumentProxy.insertText(" ") },
             delete: { [weak self] in self?.textDocumentProxy.deleteBackward() },
             returnKey: { [weak self] in self?.textDocumentProxy.insertText("\n") }

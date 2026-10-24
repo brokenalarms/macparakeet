@@ -13,7 +13,7 @@ struct OnboardingView: View {
                     Text("Dictate into any app with Parakeet running on your iPhone. Audio never leaves the device.")
                         .foregroundStyle(.secondary)
                 }
-                StepSection(title: "1. Download the speech model", done: viewModel.isComplete(.model)) {
+                StepSection(title: "1. Speech model", done: viewModel.isComplete(.model)) {
                     modelStep
                 }
                 StepSection(title: "2. Allow the microphone", done: viewModel.isComplete(.microphone)) {
@@ -55,25 +55,15 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var modelStep: some View {
-        switch viewModel.modelStatus {
-        case .ready:
-            Label("Ready", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-        case .notDownloaded:
-            Text("About 650 MB. Wi-Fi recommended.")
-            Button("Download") { Task { await viewModel.downloadModel() } }
-        case .downloading(let message, let progress):
-            if let progress {
-                ProgressView(value: progress) { Text(message).font(.footnote) }
-            } else {
-                ProgressView { Text(message).font(.footnote) }
-            }
-        case .insufficientSpace(let required, let available):
-            Text("Not enough free space: needs \(Self.bytes(required)), \(Self.bytes(available)) available.")
+        if viewModel.isModelAvailable {
+            Label("English model included — nothing to download", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text("For other languages, download the multilingual model in Settings.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            Text("This build is missing the built-in speech model. Rebuild after running `make -C iOS models`.")
                 .foregroundStyle(.red)
-            Button("Try again") { Task { await viewModel.downloadModel() } }
-        case .failed(let message):
-            Text(message).foregroundStyle(.red)
-            Button("Resume download") { Task { await viewModel.downloadModel() } }
         }
     }
 
@@ -93,10 +83,6 @@ struct OnboardingView: View {
     private func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
-    }
-
-    private static func bytes(_ count: Int64) -> String {
-        count.formatted(.byteCount(style: .file))
     }
 }
 

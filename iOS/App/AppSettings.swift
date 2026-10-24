@@ -11,6 +11,7 @@ enum AppSettings {
     static let idleTimeoutMinutesKey = "sessionIdleTimeoutMinutes"
     static let onboardingKeyboardAddedKey = "onboardingKeyboardAdded"
     static let onboardingFullAccessExplainedKey = "onboardingFullAccessExplained"
+    static let speechModelKey = "speechModel"
 
     static let defaultIdleTimeoutMinutes = 5
     static let idleTimeoutChoices = [1, 2, 5, 10, 15, 30]
@@ -29,6 +30,11 @@ enum AppSettings {
         let trigger = (defaults.string(forKey: voiceReturnTriggerKey) ?? defaultVoiceReturnTrigger)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return trigger.isEmpty ? nil : trigger
+    }
+
+    /// The chosen model; `MobileSTTClient.activeModel` falls back to English if it isn't downloaded.
+    static func speechModel(_ defaults: UserDefaults = .standard) -> SpeechModel {
+        SpeechModel(rawValue: defaults.string(forKey: speechModelKey) ?? "") ?? .english
     }
 
     static func idleTimeoutMinutes(_ defaults: UserDefaults = .standard) -> Int {

@@ -3,7 +3,8 @@
 > Status: **ACCEPTED** | Date: 2026-10-16
 > Plan: `iOS/plans/active/ios-app.md`
 > Mac ADRs referenced here live in `spec/adr/` and are not modified; the Mac spec does not reference iOS.
-> Kernel: `REQ-IOS-001`…`REQ-IOS-005`
+> Kernel: `REQ-IOS-001`…`REQ-IOS-006`
+> Amended: 2026-10-24 — Decision 7 (bundled English model, optional multilingual download)
 
 ## Context
 
@@ -44,7 +45,13 @@ The iOS app keeps its own database, vocabulary, and settings. Sync would require
 
 ### 6. No telemetry or other network services
 
-The iOS app sends nothing anywhere. The only network access is the one-time Parakeet model download from Hugging Face. Mac ADR-012 telemetry does not apply to iOS. Telemetry, crash reporting, feedback, Discover, and licensing files are excluded from the iOS build. A no-op `Telemetry` facade in `iOS/CoreReplacements/` means shared code that calls `Telemetry.send` compiles, but no transport is in the binary.
+The iOS app sends nothing anywhere. The only network access is the optional multilingual model download from Hugging Face (Decision 7). Mac ADR-012 telemetry does not apply to iOS. Telemetry, crash reporting, feedback, Discover, and licensing files are excluded from the iOS build. A no-op `Telemetry` facade in `iOS/CoreReplacements/` means shared code that calls `Telemetry.send` compiles, but no transport is in the binary.
+
+### 7. Bundled English model, optional multilingual download (amendment, 2026-10-24)
+
+Dictation works on first launch with no download. The app bundles Parakeet TDT-CTC 110M (English, about 400 MB of CoreML per FluidAudio's docs), fetched at build time by `scripts/fetch-bundled-model.sh` and loaded with `AsrModels.loadLocal`. Parakeet TDT 0.6B v3 (25 European languages, about 480 MB) is an optional download in Settings; once downloaded it becomes the selected model, and deleting it falls back to English.
+
+The 110M model needs FluidAudio 0.17.x, so the iOS build pins FluidAudio 0.17.7 while the Mac stays on 0.12.5. The Mac `STTClient` doesn't compile against 0.17.x (new `ASRError` case, new `transcribe` signature), so iOS excludes it and uses `CoreReplacements/MobileSTTClient.swift`, which conforms to the same `STTClientProtocol` that `DictationService` uses. Mac ADR-001 still holds: both models are Parakeet.
 
 ## Rationale
 
@@ -68,6 +75,8 @@ The iOS app sends nothing anywhere. The only network access is the one-time Para
 - The iOS build can break when upstream changes a shared file to depend on an excluded one; the fix is a replacement in `iOS/`, never an edit to `Sources/`.
 - No optional LLM text features (Mac ADR-011 summary/chat/refinement) on iOS: the shared provider routing depends on `Process`. Parakeet speech-to-text is unaffected.
 - Custom words and snippets must be entered separately on each device.
+- The bundled English model makes the app download about 400 MB larger; non-English speakers still download v3.
+- The iOS FluidAudio pin differs from the Mac's, so FluidAudio-dependent Core code reaches iOS through `MobileSTTClient`, not the shared `STTClient`.
 
 ### Risks
 

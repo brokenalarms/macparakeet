@@ -118,8 +118,10 @@ iOS replacements live in `iOS/CoreReplacements/` and compile into the same
 - `MobileAudioProcessor.swift`: `AudioProcessorProtocol` on `AVAudioEngine` +
   `AVAudioSession` (`.playAndRecord`, `.measurement`, `.allowBluetooth`), with
   interruption and route-change handling
+- `MobileSTTClient.swift`: `STTClientProtocol` on FluidAudio 0.17.7, replacing
+  the excluded `STT/STTClient.swift` (D6)
 
-`DictationService`, `STTClient`, `TextProcessingPipeline`, `TextRefinementService`,
+`DictationService`, `TextProcessingPipeline`, `TextRefinementService`,
 repositories, models, and `DatabaseManager` compile unchanged.
 
 Network-capable files are excluded even though they compile: `TelemetryService`,
@@ -184,11 +186,16 @@ The test target is unhosted: it compiles `Shared/` and the testable `App/`
 files directly and links `MacParakeetCoreiOS`, so tests never launch the app
 (no DB).
 
-### D6. Model download
+### D6. Speech models (amended 2026-10-24, iOS ADR-001 Decision 7)
 
-FluidAudio downloads Parakeet v3 into the app container on first launch
-(onboarding step, Wi-Fi recommended, progress UI, resumable). Check free space
-before download. Exclude model dir from iCloud backup (`isExcludedFromBackup`).
+The English model (Parakeet TDT-CTC 110M) is bundled: `make models` runs
+`scripts/fetch-bundled-model.sh`, which downloads it from Hugging Face into the
+gitignored `Models/` folder, and `project.yml` copies that folder into the app.
+`MobileSTTClient` loads it with `AsrModels.loadLocal`, so first launch needs no
+network. Parakeet v3 (multilingual) is an optional download in Settings with a
+free-space check, progress, and retry; its directory is excluded from iCloud
+backup. iOS pins FluidAudio 0.17.7 (the Mac stays on 0.12.5) because 0.12.5 has
+no 110M model.
 
 ## Implementation Steps
 
@@ -256,7 +263,8 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 | Responder-chain `openURL` breaks in a future iOS | Isolated in `AppLauncher`; fallback instructions UI |
 | CoreML/ANE inference throttled in background | Verify in Phase 2 on device with app backgrounded; fallback is transcribing when the app is foregrounded |
 | App Review rejects background audio for "holding" mic | Live Activity indicator + user-visible session timeout; WisprFlow precedent |
-| Model size on phone storage | Space check + clear messaging; consider smaller variant later |
+| Model size on phone storage | English bundled (~400 MB); multilingual optional with space check |
+| `MobileSTTClient` written against FluidAudio 0.17.7 without a compiler (Linux agent) | First Mac build must confirm it compiles; tests cover the settings logic, not FluidAudio calls |
 | Agent can't build iOS on Linux | Run Claude Code locally on a Mac with Xcode for Phases 1–3 |
 | GRDB DB in App Group container killed on suspend (`0xdead10cc`) | DB lives in the app's private container; only IPC JSON (atomic writes, no locks) is shared |
 
@@ -277,3 +285,10 @@ Phases 1–3 (2026-10-16):
   `KeyboardViewStateTests`, `OnboardingViewModelTests`, `HistoryViewModelTests`,
   `TextPipelineParityTests`), all passing on the iOS 17 simulator
 - Kernel: `app_session_requested` event added to `dictation_session.yaml` for in-app dictation
+
+Speech models + audit fixes (2026-10-24):
+
+- `CoreReplacements/MobileSTTClient.swift` (new), `project.yml` (FluidAudio 0.17.7, exclude `STT/STTClient.swift`, bundled model resource), `Makefile` (`models`, `distclean`), `scripts/fetch-bundled-model.sh` (new), `.gitignore`
+- `App/SpeechModelSettingsViewModel.swift` (new), `App/Views/SettingsView.swift`, `App/OnboardingViewModel.swift`, `App/Views/OnboardingView.swift`, `App/AppEnvironment.swift`, `App/AppSettings.swift`, `App/MacParakeetiOSApp.swift`, `App/Views/RootView.swift`
+- `Keyboard/KeyboardViewController.swift`: rebuild the SwiftUI view only when `needsInputModeSwitchKey` changes (was every layout pass)
+- `Tests/SpeechModelSettingsViewModelTests.swift` (new), `Tests/OnboardingViewModelTests.swift`
