@@ -43,9 +43,9 @@ REQ-IOS-003:
   source: iOS/spec/adr/001-ios-companion-app.md
   contract: iOS/spec/kernel/contracts/keyboard_session_ipc.yaml
   acceptance:
-    - With no live session, tapping mic opens the host app; after the user returns, the next mic tap starts recording without another app switch
+    - With no live session, tapping mic writes a start command and opens the host app with its requestID; the app starts recording it and returns the user (REQ-IOS-007); the next tap in the original app stops it
     - With a live session, mic tap starts recording and the second tap stops it
-    - The keyboard inserts a result only if its requestID matches a request this keyboard instance issued, and inserts each requestID at most once
+    - The keyboard inserts a result only if its requestID matches a request this keyboard issued (a launch's request survives the keyboard being recreated, for 30 min), and inserts each requestID at most once
     - An empty transcript inserts nothing and shows no error
     - A Voice Return snippet match (postAction return) inserts the cleaned text followed by a newline
     - Without Full Access the keyboard shows only an enable-Full-Access prompt plus globe key
@@ -86,3 +86,19 @@ REQ-IOS-006:
     - A finished download selects the multilingual model; only downloaded models can be selected
     - Deleting the multilingual model frees its storage and returns to English
     - If the stored choice is multilingual but its files are missing, dictation uses English
+
+REQ-IOS-007:
+  description: After a keyboard launch starts recording, the app returns the user to the app they were typing in
+  version: ios-v1
+  status: active
+  priority: p1
+  source: iOS/spec/adr/001-ios-companion-app.md
+  contract: iOS/spec/kernel/contracts/keyboard_session_ipc.yaml
+  acceptance:
+    - A launch carrying the request of a fresh start command starts recording that request as soon as the audio session is active, without a second tap
+    - A launch whose command is stale (> 10 s) or names another request only activates the session; a stale command reports stale_command
+    - The host is the keyboard-reported bundle ID when present (iOS 26.3 and earlier), else the bundle ID UIKit reports to the app within 2 s (iOS 26.4+), ignoring MacParakeet's own bundles and hosts seen more than 5 s before the launch
+    - A known host is opened by its URL scheme; a failed open is retried up to twice only while the app is still becoming active
+    - Unknown or unopenable hosts leave recording running and show a swipe-back hint until recording ends
+    - Auto-return can be turned off in Settings (default on); recording still starts
+    - All private UIKit access is isolated (Keyboard/HostAppDetector.swift, App/RemoteKeyboardHostObserver.swift) and checked at runtime, so a removed API disables auto-return instead of crashing

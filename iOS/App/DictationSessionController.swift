@@ -89,16 +89,26 @@ final class DictationSessionController {
 
     // MARK: - Entry points
 
-    func handle(url: URL) async {
-        guard url.scheme == SessionIPC.launchURL.scheme,
-              url.host() == SessionIPC.launchURL.host(),
-              url.path() == SessionIPC.launchURL.path()
-        else { return }
+    /// Handles `macparakeet://session/start`. When the launch names the keyboard's start
+    /// command, recording starts as soon as the audio session is up, so the user can go
+    /// straight back to their app. Returns the parsed launch, or nil for any other URL.
+    @discardableResult
+    func handle(url: URL) async -> SessionLaunch? {
+        guard let launch = SessionLaunch(url: url) else { return nil }
         if phase.holdsAudioSession {
             enterReady()
-            return
+        } else {
+            await activate(via: .launchURLOpened)
         }
-        await activate(via: .launchURLOpened)
+        if let requestID = launch.requestID {
+            await startLaunchCommand(requestID: requestID)
+        }
+        return launch
+    }
+
+    /// Whether the keyboard request from a launch is now recording.
+    func isRecording(requestID: UUID) -> Bool {
+        phase == .recording && activeRequestID == requestID
     }
 
     func startInApp() async {
@@ -136,6 +146,22 @@ final class DictationSessionController {
             case .stop: await stop(requestID: command.requestID)
             case .cancel: await cancel(requestID: command.requestID)
             }
+        }
+    }
+
+    /// Applies the start command the keyboard wrote before launching the app, under the
+    /// same gate as a posted command.
+    private func startLaunchCommand(requestID: UUID) async {
+        guard let command = store?.readCommand(), command.requestID == requestID, command.action == .start,
+              let state = phase.ipcState
+        else { return }
+        switch CommandDecision.evaluate(command, state: state, activeRequestID: activeRequestID, now: now()) {
+        case .ignore:
+            return
+        case .reject(let code):
+            report(SessionError(requestID: command.requestID, code: code))
+        case .accept:
+            await start(requestID: command.requestID)
         }
     }
 

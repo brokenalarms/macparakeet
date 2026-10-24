@@ -17,7 +17,7 @@ struct MacParakeetiOSApp: App {
             }
             .onOpenURL { url in
                 guard case .ready(let environment) = root.state else { return }
-                Task { await environment.session.handle(url: url) }
+                Task { await environment.handleLaunch(url) }
             }
         }
     }

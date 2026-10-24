@@ -14,6 +14,8 @@ final class AppEnvironment {
     let audioProcessor: MobileAudioProcessor
     let dictationService: DictationService
     let session: DictationSessionController
+    let hostObserver: RemoteKeyboardHostObserver
+    let hostReturn: HostReturnController
 
     init() throws {
         try AppPaths.ensureDirectories()
@@ -48,5 +50,25 @@ final class AppEnvironment {
             isModelReady: { sttClient.isActiveModelAvailable },
             idleTimeout: { .seconds(AppSettings.idleTimeoutMinutes() * 60) }
         )
+
+        let hostObserver = RemoteKeyboardHostObserver()
+        hostObserver.start()
+        self.hostObserver = hostObserver
+        hostReturn = HostReturnController(
+            observer: hostObserver,
+            opener: ApplicationURLOpener(),
+            isEnabled: { AppSettings.autoReturn() }
+        )
+    }
+
+    /// A keyboard launch: start the keyboard's request, then send the user back to the app
+    /// they were typing in (REQ-IOS-007).
+    func handleLaunch(_ url: URL) async {
+        let launchedAt = Date()
+        guard let launch = await session.handle(url: url),
+              let requestID = launch.requestID,
+              session.isRecording(requestID: requestID)
+        else { return }
+        await hostReturn.returnToHost(keyboardHost: launch.hostBundleID, launchedAt: launchedAt)
     }
 }

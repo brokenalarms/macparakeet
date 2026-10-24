@@ -5,6 +5,7 @@ struct SettingsView: View {
     let speechModels: SpeechModelSettingsViewModel
     @AppStorage(AppSettings.saveDictationHistoryKey) private var saveDictationHistory = true
     @AppStorage(AppSettings.idleTimeoutMinutesKey) private var idleTimeoutMinutes = AppSettings.defaultIdleTimeoutMinutes
+    @AppStorage(AppSettings.autoReturnKey) private var autoReturn = true
 
     var body: some View {
         NavigationStack {
@@ -12,6 +13,7 @@ struct SettingsView: View {
                 SpeechModelSection(viewModel: speechModels)
 
                 Section {
+                    Toggle("Return to your app automatically", isOn: $autoReturn)
                     Picker("End mic session after", selection: $idleTimeoutMinutes) {
                         ForEach(AppSettings.idleTimeoutChoices, id: \.self) { minutes in
                             Text("\(minutes) min idle").tag(minutes)
@@ -20,7 +22,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Keyboard session")
                 } footer: {
-                    Text("While the mic session is active, the keyboard dictates without opening MacParakeet. A Live Activity shows when it's on.")
+                    Text("Tapping the keyboard mic opens MacParakeet, starts listening, and goes back to the app you were typing in. While the mic session is active, the keyboard dictates without opening MacParakeet. A Live Activity shows when it's on.")
                 }
 
                 Section {

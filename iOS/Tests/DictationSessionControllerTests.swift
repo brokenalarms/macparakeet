@@ -71,6 +71,45 @@ final class DictationSessionControllerTests: XCTestCase {
         XCTAssertNil(store.readSession())
     }
 
+    // MARK: - Keyboard launch (REQ-IOS-007)
+
+    func testLaunchWithRequestStartsRecordingThatRequest() async throws {
+        let controller = makeController()
+        let requestID = UUID()
+        try store.write(SessionCommand(requestID: requestID, action: .start, issuedAt: clock))
+        let launch = await controller.handle(url: SessionLaunch(requestID: requestID, hostBundleID: "com.apple.MobileSMS").url)
+        XCTAssertEqual(launch, SessionLaunch(requestID: requestID, hostBundleID: "com.apple.MobileSMS"))
+        XCTAssertEqual(controller.phase, .recording)
+        XCTAssertTrue(controller.isRecording(requestID: requestID))
+        XCTAssertEqual(store.readSession()?.activeRequestID, requestID)
+    }
+
+    func testLaunchWithRequestStartsRecordingInLiveSession() async throws {
+        let controller = await readyController()
+        let requestID = UUID()
+        try store.write(SessionCommand(requestID: requestID, action: .start, issuedAt: clock))
+        await controller.handle(url: SessionLaunch(requestID: requestID).url)
+        XCTAssertTrue(controller.isRecording(requestID: requestID))
+    }
+
+    func testLaunchWithStaleCommandStaysReadyAndReportsError() async throws {
+        let controller = makeController()
+        let requestID = UUID()
+        try store.write(SessionCommand(requestID: requestID, action: .start, issuedAt: clock.addingTimeInterval(-11)))
+        await controller.handle(url: SessionLaunch(requestID: requestID).url)
+        XCTAssertEqual(controller.phase, .ready)
+        XCTAssertEqual(store.readSession()?.error, SessionError(requestID: requestID, code: .staleCommand))
+    }
+
+    func testLaunchWithMismatchedCommandOnlyActivates() async throws {
+        let controller = makeController()
+        try store.write(SessionCommand(requestID: UUID(), action: .start, issuedAt: clock))
+        let requestID = UUID()
+        await controller.handle(url: SessionLaunch(requestID: requestID).url)
+        XCTAssertEqual(controller.phase, .ready)
+        XCTAssertFalse(controller.isRecording(requestID: requestID))
+    }
+
     func testMicrophoneDeniedEndsSessionWithError() async {
         await audio.setActivationError(AudioProcessorError.microphonePermissionDenied)
         let controller = await readyController()

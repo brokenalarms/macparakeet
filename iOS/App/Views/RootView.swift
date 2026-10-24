@@ -19,7 +19,7 @@ struct RootView: View {
 
     var body: some View {
         TabView {
-            HomeView(session: environment.session, onboarding: onboarding, showsOnboarding: $showsOnboarding)
+            HomeView(session: environment.session, hostReturn: environment.hostReturn, onboarding: onboarding, showsOnboarding: $showsOnboarding)
                 .tabItem { Label("Dictate", systemImage: "mic") }
             HistoryView(viewModel: HistoryViewModel(repo: environment.dictationRepo))
                 .tabItem { Label("History", systemImage: "clock") }

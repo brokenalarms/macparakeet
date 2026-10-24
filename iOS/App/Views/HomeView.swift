@@ -3,6 +3,7 @@ import UIKit
 
 struct HomeView: View {
     let session: DictationSessionController
+    let hostReturn: HostReturnController
     let onboarding: OnboardingViewModel
     @Binding var showsOnboarding: Bool
 
@@ -14,6 +15,12 @@ struct HomeView: View {
                         Button("Finish setup") { showsOnboarding = true }
                     } footer: {
                         Text("Download the speech model, allow the microphone, and add the keyboard.")
+                    }
+                }
+
+                if let hint = returnHint {
+                    Section {
+                        Label(hint, systemImage: "arrow.uturn.backward")
                     }
                 }
 
@@ -54,6 +61,21 @@ struct HomeView: View {
             }
             .navigationTitle("MacParakeet")
             .onAppear { onboarding.refresh() }
+            .onChange(of: session.phase) { _, phase in
+                if phase != .recording { hostReturn.reset() }
+            }
+        }
+    }
+
+    private var returnHint: String? {
+        switch hostReturn.status {
+        case .idle, .returned:
+            return nil
+        case .returning:
+            return "Returning to your app…"
+        case .manual(let hostName):
+            let app = hostName ?? "your app"
+            return "Recording. Go back to \(app) to keep dictating: tap ◀ at the top left, or swipe right along the bottom edge."
         }
     }
 

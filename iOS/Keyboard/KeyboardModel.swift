@@ -18,11 +18,21 @@ final class KeyboardModel {
     @ObservationIgnored private var inserted: Set<UUID> = []
     @ObservationIgnored private var pendingRequestID: UUID?
     @ObservationIgnored private var observer: DarwinNotifier?
+    @ObservationIgnored private let pending: PendingLaunchStore
     @ObservationIgnored var insertText: (String) -> Void = { _ in }
-    @ObservationIgnored var launchApp: () -> Bool = { false }
+    /// Opens the host app with the given launch URL; false when no launch path was found.
+    @ObservationIgnored var launchApp: (URL) -> Bool = { _ in false }
+    /// The app the keyboard is typing in, when iOS still exposes it.
+    @ObservationIgnored var hostBundleID: () -> String? = { nil }
 
-    init(store: SessionFileStore? = .appGroup) {
+    init(store: SessionFileStore? = .appGroup, pending: PendingLaunchStore = PendingLaunchStore()) {
         self.store = store
+        self.pending = pending
+        // A launch from an earlier keyboard instance may still be recording.
+        if let requestID = pending.load() {
+            issued.insert(requestID)
+            pendingRequestID = requestID
+        }
     }
 
     func startObserving() {
@@ -52,9 +62,7 @@ final class KeyboardModel {
         case .fullAccessRequired, .busyElsewhere, .processing:
             return
         case .noSession:
-            if !launchApp() {
-                notice = "Open MacParakeet, then come back to dictate."
-            }
+            launchAndStart()
         case .idle:
             send(.start, requestID: UUID())
         case .recording:
@@ -66,6 +74,23 @@ final class KeyboardModel {
     func cancelTapped() {
         guard viewState == .recording, let pendingRequestID else { return }
         send(.cancel, requestID: pendingRequestID)
+    }
+
+    /// Writes the start command, then opens the app with its request ID so the app starts
+    /// recording and sends the user straight back (REQ-IOS-007). Not posted as a signal:
+    /// the app reads it when the launch URL arrives.
+    private func launchAndStart() {
+        let requestID = UUID()
+        if let store {
+            try? store.write(SessionCommand(requestID: requestID, action: .start, issuedAt: Date()))
+        }
+        issued.insert(requestID)
+        pendingRequestID = requestID
+        pending.save(requestID)
+        let launch = SessionLaunch(requestID: requestID, hostBundleID: hostBundleID())
+        if !launchApp(launch.url) {
+            notice = "Open MacParakeet, then come back to dictate."
+        }
     }
 
     private func send(_ action: CommandAction, requestID: UUID) {
@@ -87,6 +112,9 @@ final class KeyboardModel {
         inserted.insert(result.requestID)
         if pendingRequestID == result.requestID {
             pendingRequestID = nil
+        }
+        if pending.load() == result.requestID {
+            pending.clear()
         }
         if let text = plan.text {
             insertText(text)
