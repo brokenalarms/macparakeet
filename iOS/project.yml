@@ -192,6 +192,7 @@ targets:
       - path: App/DictationSessionController.swift
       - path: App/OnboardingViewModel.swift
       - path: App/SpeechModelSettingsViewModel.swift
+      - path: App/HostReturnController.swift
       - path: App/HistoryViewModel.swift
     dependencies:
       - target: MacParakeetCoreiOS

@@ -1,6 +1,6 @@
 name: dictation_session
 status: active
-requirements: [REQ-IOS-002]
+requirements: [REQ-IOS-002, REQ-IOS-007]
 owner: host app (DictationSessionController)
 initial: inactive
 states: [inactive, activating, ready, recording, processing, ended]
@@ -46,4 +46,5 @@ invariants:
   - The idle timer runs only in ready and resets on every transition into ready
   - transcript_ready persists the dictation via DictationRepository (unless private mode) before writing the result
   - interruption_began during recording transcribes the captured audio rather than discarding it
+  - A launch_url_opened carrying request applies the keyboard's stored start command as start_command once ready (no new states)
   - In-app dictation uses the same session and an app-generated requestID, so the keyboard sees it as busy_elsewhere

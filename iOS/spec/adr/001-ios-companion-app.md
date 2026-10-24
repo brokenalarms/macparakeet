@@ -3,8 +3,8 @@
 > Status: **ACCEPTED** | Date: 2026-10-16
 > Plan: `iOS/plans/active/ios-app.md`
 > Mac ADRs referenced here live in `spec/adr/` and are not modified; the Mac spec does not reference iOS.
-> Kernel: `REQ-IOS-001`…`REQ-IOS-006`
-> Amended: 2026-10-24 — Decision 7 (bundled English model, optional multilingual download)
+> Kernel: `REQ-IOS-001`…`REQ-IOS-007`
+> Amended: 2026-10-24 — Decision 7 (bundled English model, optional multilingual download); Decision 8 (auto-return)
 
 ## Context
 
@@ -27,7 +27,7 @@ iOS v1 ships the dictation half of the product: in-app dictation, a launcher key
 
 The keyboard is a launcher (mic, globe, space, delete, return), not a typing keyboard. The host app holds an `AVAudioSession` under the `audio` background mode and runs `DictationService` unchanged. Keyboard ↔ app communication uses Darwin notifications for signals and single-writer JSON files in the App Group for payloads (contract: `iOS/spec/kernel/contracts/keyboard_session_ipc.yaml`; flow: `iOS/spec/kernel/state_machines/dictation_session.yaml`).
 
-The first mic tap with no live session opens the app via `macparakeet://session/start` using the responder-chain `openURL` technique, isolated in one file behind a protocol. The user returns with the system "◀ Back" link; subsequent dictations need no app switch until the session idles out (default 5 min). A Live Activity is shown for the whole time the mic session is held.
+The first mic tap with no live session opens the app via `macparakeet://session/start` using the responder-chain `openURL` technique, isolated in one file behind a protocol. The app starts recording right away and returns the user to the app they were in (Decision 8); subsequent dictations need no app switch until the session idles out (default 5 min). A Live Activity is shown for the whole time the mic session is held.
 
 The keyboard requires Full Access (App Group access). It never links `MacParakeetCore` and never opens the database.
 
@@ -53,6 +53,12 @@ Dictation works on first launch with no download. The app bundles Parakeet TDT-C
 
 The 110M model needs FluidAudio 0.17.x, so the iOS build pins FluidAudio 0.17.7 while the Mac stays on 0.12.5. The Mac `STTClient` doesn't compile against 0.17.x (new `ASRError` case, new `transcribe` signature), so iOS excludes it and uses `CoreReplacements/MobileSTTClient.swift`, which conforms to the same `STTClientProtocol` that `DictationService` uses. Mac ADR-001 still holds: both models are Parakeet.
 
+### 8. Auto-return after a keyboard launch (amendment, 2026-10-24)
+
+Matching Wispr Flow, one mic tap with no live session records and lands the user back where they were typing. The keyboard writes its start command, then opens `macparakeet://session/start?request=<id>&host=<bundle id>`; the app activates the session, applies that command, and opens the host by its URL scheme.
+
+There is no public API to learn the previous app or return to it. The host comes from private UIKit state: `_hostBundleID` on the keyboard's parent controller through iOS 26.3, and `_UIRemoteKeyboards.currentState.sourceBundleIdentifier` in the app on 26.4+ (the approach OpenWhispr ships). Only apps in a URL-scheme catalog can be reopened. Each private access lives in one file and is checked at runtime; when any hop is missing, recording continues and the app shows a swipe-back hint. The behavior can be turned off in Settings.
+
 ## Rationale
 
 - **Host-app STT is the only viable option.** The keyboard memory cap rules out on-keyboard inference; Apple's `SFSpeechRecognizer` would break Mac ADR-001 and Mac ADR-002.
@@ -72,6 +78,8 @@ The 110M model needs FluidAudio 0.17.x, so the iOS build pins FluidAudio 0.17.7 
 - First dictation after the session idles out requires an app round-trip.
 - Full Access triggers Apple's "can transmit anything you type" warning; onboarding must explain it.
 - The responder-chain app launch is unsupported API and may break in a future iOS release.
+- Auto-return relies on private UIKit state that already changed once (iOS 26.4) and may change again; App Review may object. Removing it leaves the swipe-back hint.
+- Apps outside the catalog, and Safari, are not returned to automatically.
 - The iOS build can break when upstream changes a shared file to depend on an excluded one; the fix is a replacement in `iOS/`, never an edit to `Sources/`.
 - No optional LLM text features (Mac ADR-011 summary/chat/refinement) on iOS: the shared provider routing depends on `Process`. Parakeet speech-to-text is unaffected.
 - Custom words and snippets must be entered separately on each device.

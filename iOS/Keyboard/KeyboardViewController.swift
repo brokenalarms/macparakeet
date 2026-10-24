@@ -10,9 +10,13 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         model.insertText = { [weak self] text in self?.textDocumentProxy.insertText(text) }
-        model.launchApp = { [weak self] in
+        model.launchApp = { [weak self] url in
             guard let self else { return false }
-            return self.launcher.open(SessionIPC.launchURL, from: self)
+            return self.launcher.open(url, from: self)
+        }
+        model.hostBundleID = { [weak self] in
+            guard let self else { return nil }
+            return HostAppDetector.hostBundleID(of: self)
         }
         installKeyboardView()
     }

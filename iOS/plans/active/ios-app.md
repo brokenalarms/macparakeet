@@ -18,7 +18,7 @@ a few utility keys. Users switch back to their normal keyboard (globe) to type.
 1. iOS app in `iOS/` compiling `Sources/MacParakeetCore` in place (Parakeet STT,
    pipeline, GRDB repos) with zero edits to the Mac sources
 2. Minimal keyboard extension that triggers dictation and inserts the result
-3. Background dictation session in the host app (WisprFlow-style "open app → tap Back")
+3. Background dictation session in the host app (WisprFlow-style: one tap opens the app, starts recording, and returns to the previous app; iOS ADR-001 Decision 8)
 4. History, custom words, snippets, processing mode, settings screens
 
 ### Out of scope
@@ -263,6 +263,7 @@ a Mac with Xcode; Phase 3+ needs a physical iPhone for mic/background/keyboard.
 | Responder-chain `openURL` breaks in a future iOS | Isolated in `AppLauncher`; fallback instructions UI |
 | CoreML/ANE inference throttled in background | Verify in Phase 2 on device with app backgrounded; fallback is transcribing when the app is foregrounded |
 | App Review rejects background audio for "holding" mic | Live Activity indicator + user-visible session timeout; WisprFlow precedent |
+| Private host detection (`_hostBundleID`, `_UIRemoteKeyboards`) changes or is rejected | One file each, runtime-checked; swipe-back hint fallback; Settings toggle |
 | Model size on phone storage | English bundled (~400 MB); multilingual optional with space check |
 | `MobileSTTClient` written against FluidAudio 0.17.7 without a compiler (Linux agent) | First Mac build must confirm it compiles; tests cover the settings logic, not FluidAudio calls |
 | Agent can't build iOS on Linux | Run Claude Code locally on a Mac with Xcode for Phases 1–3 |
@@ -292,3 +293,11 @@ Speech models + audit fixes (2026-10-24):
 - `App/SpeechModelSettingsViewModel.swift` (new), `App/Views/SettingsView.swift`, `App/OnboardingViewModel.swift`, `App/Views/OnboardingView.swift`, `App/AppEnvironment.swift`, `App/AppSettings.swift`, `App/MacParakeetiOSApp.swift`, `App/Views/RootView.swift`
 - `Keyboard/KeyboardViewController.swift`: rebuild the SwiftUI view only when `needsInputModeSwitchKey` changes (was every layout pass)
 - `Tests/SpeechModelSettingsViewModelTests.swift` (new), `Tests/OnboardingViewModelTests.swift`
+
+Auto-return (2026-10-24):
+
+- `Shared/SessionIPC.swift` (`SessionLaunch`), `Shared/PendingLaunchStore.swift` (new)
+- `Keyboard/KeyboardModel.swift`, `Keyboard/KeyboardViewController.swift`, `Keyboard/HostAppDetector.swift` (new)
+- `App/DictationSessionController.swift` (`handle(url:)` applies the launch's start command), `App/HostReturnController.swift` (new), `App/RemoteKeyboardHostObserver.swift` (new), `App/AppEnvironment.swift`, `App/AppSettings.swift`, `App/MacParakeetiOSApp.swift`, `App/Views/HomeView.swift`, `App/Views/RootView.swift`, `App/Views/SettingsView.swift`
+- `Tests/HostReturnControllerTests.swift` (new), `Tests/DictationSessionControllerTests.swift`, `Tests/SessionIPCTests.swift`
+- Kernel: REQ-IOS-007, REQ-IOS-003 amended, contract `launch_query`, state machine invariant, ADR Decision 8

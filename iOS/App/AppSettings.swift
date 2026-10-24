@@ -12,6 +12,7 @@ enum AppSettings {
     static let onboardingKeyboardAddedKey = "onboardingKeyboardAdded"
     static let onboardingFullAccessExplainedKey = "onboardingFullAccessExplained"
     static let speechModelKey = "speechModel"
+    static let autoReturnKey = "autoReturnToHost"
 
     static let defaultIdleTimeoutMinutes = 5
     static let idleTimeoutChoices = [1, 2, 5, 10, 15, 30]
@@ -35,6 +36,11 @@ enum AppSettings {
     /// The chosen model; `MobileSTTClient.activeModel` falls back to English if it isn't downloaded.
     static func speechModel(_ defaults: UserDefaults = .standard) -> SpeechModel {
         SpeechModel(rawValue: defaults.string(forKey: speechModelKey) ?? "") ?? .english
+    }
+
+    /// Return to the app the keyboard was in after a keyboard launch starts recording.
+    static func autoReturn(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: autoReturnKey) as? Bool ?? true
     }
 
     static func idleTimeoutMinutes(_ defaults: UserDefaults = .standard) -> Int {

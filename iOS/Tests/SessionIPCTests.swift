@@ -13,6 +13,43 @@ final class SessionIPCTests: XCTestCase {
         try? FileManager.default.removeItem(at: store.directory)
     }
 
+    func testLaunchURLRoundTrips() throws {
+        let launch = SessionLaunch(requestID: UUID(), hostBundleID: "com.apple.mobilenotes")
+        XCTAssertEqual(SessionLaunch(url: launch.url), launch)
+    }
+
+    func testPlainLaunchURLHasNoRequest() throws {
+        let launch = try XCTUnwrap(SessionLaunch(url: SessionIPC.launchURL))
+        XCTAssertNil(launch.requestID)
+        XCTAssertNil(launch.hostBundleID)
+        XCTAssertEqual(SessionLaunch().url, SessionIPC.launchURL)
+    }
+
+    func testOtherURLsAreNotLaunches() {
+        XCTAssertNil(SessionLaunch(url: URL(string: "macparakeet://other")!))
+        XCTAssertNil(SessionLaunch(url: URL(string: "https://session/start")!))
+    }
+
+    func testMalformedRequestIsDropped() throws {
+        let launch = try XCTUnwrap(SessionLaunch(url: URL(string: "macparakeet://session/start?request=nope&host=")!))
+        XCTAssertNil(launch.requestID)
+        XCTAssertNil(launch.hostBundleID)
+    }
+
+    func testPendingLaunchStoreExpires() throws {
+        let suite = "PendingLaunchStoreTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = PendingLaunchStore(defaults: defaults)
+        let id = UUID()
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        store.save(id, now: start)
+        XCTAssertEqual(store.load(now: start.addingTimeInterval(60)), id)
+        XCTAssertNil(store.load(now: start.addingTimeInterval(PendingLaunchStore.lifetime + 1)))
+        store.clear()
+        XCTAssertNil(store.load(now: start))
+    }
+
     func testSessionRoundTripsThroughFile() throws {
         let snapshot = SessionSnapshot(
             sessionID: UUID(),

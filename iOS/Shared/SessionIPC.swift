@@ -11,6 +11,39 @@ enum SessionIPC {
     static let heartbeatInterval: Duration = .seconds(2)
 }
 
+/// The keyboard's launch of the host app: `macparakeet://session/start?request=<uuid>&host=<bundle id>`.
+/// `request` names the start command the keyboard wrote just before launching, so the app
+/// can start recording without a second tap. `host` is the app the keyboard was typing in,
+/// when iOS still exposes it to the keyboard (iOS 26.3 and earlier).
+struct SessionLaunch: Equatable, Sendable {
+    var requestID: UUID?
+    var hostBundleID: String?
+
+    init(requestID: UUID? = nil, hostBundleID: String? = nil) {
+        self.requestID = requestID
+        self.hostBundleID = hostBundleID
+    }
+
+    init?(url: URL) {
+        let base = SessionIPC.launchURL
+        guard url.scheme == base.scheme, url.host() == base.host(), url.path() == base.path() else {
+            return nil
+        }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        requestID = items.first { $0.name == "request" }?.value.flatMap(UUID.init(uuidString:))
+        hostBundleID = items.first { $0.name == "host" }?.value.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    var url: URL {
+        var components = URLComponents(url: SessionIPC.launchURL, resolvingAgainstBaseURL: false)!
+        var items: [URLQueryItem] = []
+        if let requestID { items.append(URLQueryItem(name: "request", value: requestID.uuidString)) }
+        if let hostBundleID { items.append(URLQueryItem(name: "host", value: hostBundleID)) }
+        components.queryItems = items.isEmpty ? nil : items
+        return components.url!
+    }
+}
+
 enum CommandAction: String, Codable, Sendable {
     case start
     case stop
